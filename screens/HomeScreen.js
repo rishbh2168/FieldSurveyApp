@@ -1,178 +1,202 @@
-import React from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, StatusBar,
-} from 'react-native';
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { MOCK_TASKS } from "../utils/tasks";
 
 export default function HomeScreen({ navigation }) {
+  // Quick stats
+  const activeTasks = MOCK_TASKS.filter((t) =>
+    ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(t.state),
+  ).length;
+  const completedToday = MOCK_TASKS.filter((t) =>
+    ["COMPLETED", "VERIFIED"].includes(t.state),
+  ).length;
+  const highPriority = MOCK_TASKS.filter(
+    (t) => t.priority === "HIGH" && !["VERIFIED"].includes(t.state),
+  ).length;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a73e8" />
 
-      {/* Header Banner */}
       <View style={styles.header}>
         <Text style={styles.headerIcon}>🔧</Text>
         <Text style={styles.headerTitle}>FieldSurvey Pro</Text>
-        <Text style={styles.headerSubtitle}>Site Inspection Tool</Text>
+        <Text style={styles.headerSubtitle}>Field Service Management</Text>
       </View>
 
-      {/* Main Content */}
-      <View style={styles.content}>
-        <Text style={styles.welcomeText}>Welcome, Field Engineer 👷</Text>
-        <Text style={styles.descText}>
-          Complete your daily site inspection survey. Answer all questions and attach required photos before submission.
-        </Text>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
+        <Text style={styles.welcomeText}>Welcome, Rishi 👷</Text>
+        <Text style={styles.descText}>Your assigned work orders for today</Text>
+
+        {/* Quick Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statBox, { backgroundColor: "#dbeafe" }]}>
+            <Text style={[styles.statNum, { color: "#1e40af" }]}>
+              {activeTasks}
+            </Text>
+            <Text style={styles.statLabel}>Active</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: "#fee2e2" }]}>
+            <Text style={[styles.statNum, { color: "#ef4444" }]}>
+              {highPriority}
+            </Text>
+            <Text style={styles.statLabel}>High Priority</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: "#dcfce7" }]}>
+            <Text style={[styles.statNum, { color: "#16a34a" }]}>
+              {completedToday}
+            </Text>
+            <Text style={styles.statLabel}>Done</Text>
+          </View>
+        </View>
+
+        {/* Primary Action: View Work Orders */}
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={() => navigation.navigate("TaskList")}
+          activeOpacity={0.85}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.primaryBtnText}>📋 My Work Orders</Text>
+            <Text style={styles.primaryBtnSub}>
+              View and manage your assigned tasks
+            </Text>
+          </View>
+          <Text style={styles.primaryBtnArrow}>→</Text>
+        </TouchableOpacity>
+
+        {/* Quick Actions */}
+        <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
+
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          onPress={() => navigation.navigate("Survey")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.secondaryIcon}>📝</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.secondaryBtnText}>Quick Survey</Text>
+            <Text style={styles.secondaryBtnSub}>
+              Submit a standalone survey (no task)
+            </Text>
+          </View>
+          <Text style={styles.secondaryArrow}>→</Text>
+        </TouchableOpacity>
 
         {/* Info Card */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>📋 Today's Survey Includes:</Text>
-          <Text style={styles.infoItem}>✅  Site information & location details</Text>
-          <Text style={styles.infoItem}>✅  Equipment condition assessment</Text>
-          <Text style={styles.infoItem}>📷  Photo documentation (required)</Text>
-          <Text style={styles.infoItem}>⚠️  Issue reporting & notes</Text>
+          <Text style={styles.infoTitle}>📋 Today's Workflow</Text>
+          <Text style={styles.infoItem}>1️⃣ View work orders</Text>
+          <Text style={styles.infoItem}>2️⃣ Accept the task</Text>
+          <Text style={styles.infoItem}>3️⃣ Travel to site & start work</Text>
+          <Text style={styles.infoItem}>4️⃣ Fill survey with photos</Text>
+          <Text style={styles.infoItem}>5️⃣ Submit for manager review</Text>
         </View>
-
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>9</Text>
-            <Text style={styles.statLabel}>Questions</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>2</Text>
-            <Text style={styles.statLabel}>Photos</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>~5</Text>
-            <Text style={styles.statLabel}>Minutes</Text>
-          </View>
-        </View>
-
-        {/* Start Button */}
-        <TouchableOpacity
-          style={styles.startButton}
-          onPress={() => navigation.navigate('Survey')}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.startButtonText}>Start Survey  →</Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f4ff',
-  },
+  container: { flex: 1, backgroundColor: "#f0f4ff" },
   header: {
-    backgroundColor: '#1a73e8',
-    paddingVertical: 36,
-    alignItems: 'center',
+    backgroundColor: "#1a73e8",
+    paddingVertical: 30,
+    alignItems: "center",
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     elevation: 6,
-    shadowColor: '#1a73e8',
+    shadowColor: "#1a73e8",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
   },
-  headerIcon: { fontSize: 52, marginBottom: 6 },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  headerSubtitle: {
-    color: '#c5d8ff',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-  },
+  headerIcon: { fontSize: 44, marginBottom: 4 },
+  headerTitle: { color: "#fff", fontSize: 24, fontWeight: "800" },
+  headerSubtitle: { color: "#c5d8ff", fontSize: 12, marginTop: 4 },
+  content: { padding: 20, paddingBottom: 40 },
   welcomeText: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1a1a2e',
-    marginTop: 12,
-  },
-  descText: {
-    fontSize: 14,
-    color: '#666',
+    fontWeight: "800",
+    color: "#1a1a2e",
     marginTop: 8,
-    lineHeight: 22,
   },
-  infoCard: {
-    backgroundColor: '#fff',
+  descText: { fontSize: 13, color: "#666", marginTop: 4 },
+
+  statsRow: { flexDirection: "row", gap: 10, marginTop: 20 },
+  statBox: { flex: 1, padding: 14, borderRadius: 12, alignItems: "center" },
+  statNum: { fontSize: 26, fontWeight: "800" },
+  statLabel: {
+    fontSize: 11,
+    color: "#666",
+    fontWeight: "700",
+    marginTop: 4,
+    textTransform: "uppercase",
+  },
+
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1a73e8",
     borderRadius: 14,
-    padding: 20,
-    marginTop: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    padding: 18,
+    marginTop: 24,
+    elevation: 4,
+    shadowColor: "#1a73e8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
-  infoTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1a73e8',
-    marginBottom: 12,
+  primaryBtnText: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  primaryBtnSub: { color: "#c5d8ff", fontSize: 12, marginTop: 2 },
+  primaryBtnArrow: { color: "#fff", fontSize: 24, fontWeight: "300" },
+
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#888",
+    marginTop: 24,
+    marginBottom: 8,
+    letterSpacing: 1,
   },
-  infoItem: {
-    fontSize: 14,
-    color: '#444',
-    marginVertical: 4,
-    lineHeight: 20,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-    gap: 10,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: '#fff',
+
+  secondaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 14,
-    alignItems: 'center',
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.07,
     shadowRadius: 4,
   },
-  statNum: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1a73e8',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 2,
-  },
-  startButton: {
-    backgroundColor: '#1a73e8',
+  secondaryIcon: { fontSize: 26, marginRight: 12 },
+  secondaryBtnText: { fontSize: 15, fontWeight: "800", color: "#1a1a2e" },
+  secondaryBtnSub: { fontSize: 11, color: "#666", marginTop: 2 },
+  secondaryArrow: { fontSize: 20, color: "#aaa" },
+
+  infoCard: {
+    backgroundColor: "#fff",
     borderRadius: 14,
     padding: 18,
-    alignItems: 'center',
-    marginTop: 28,
-    elevation: 4,
-    shadowColor: '#1a73e8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    marginTop: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#ffb703",
   },
-  startButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#1a1a2e",
+    marginBottom: 10,
   },
+  infoItem: { fontSize: 13, color: "#555", marginVertical: 4 },
 });

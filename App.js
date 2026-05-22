@@ -4,6 +4,8 @@ import { registerRootComponent } from "expo";
 import HomeScreen from "./screens/HomeScreen";
 import SuccessScreen from "./screens/SuccessScreen";
 import SurveyScreen from "./screens/SurveyScreen";
+import TaskDetailScreen from "./screens/TaskDetailScreen";
+import TaskListScreen from "./screens/TaskListScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -12,6 +14,8 @@ function App() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="TaskList" component={TaskListScreen} />
+        <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
         <Stack.Screen name="Survey" component={SurveyScreen} />
         <Stack.Screen name="Success" component={SuccessScreen} />
       </Stack.Navigator>
@@ -19,7 +23,6 @@ function App() {
   );
 }
 
-// Register the App as the root component (required when not using Expo Router)
 registerRootComponent(App);
 
 export default App;
