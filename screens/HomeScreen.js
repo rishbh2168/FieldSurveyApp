@@ -1,3 +1,5 @@
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -7,10 +9,26 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { loadIssues } from "../utils/issues";
 import { MOCK_TASKS } from "../utils/tasks";
 
 export default function HomeScreen({ navigation }) {
-  // Quick stats
+  const [issuesCount, setIssuesCount] = useState({ active: 0, total: 0 });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadIssueStats();
+    }, []),
+  );
+
+  const loadIssueStats = async () => {
+    const issues = await loadIssues();
+    setIssuesCount({
+      active: issues.filter((i) => !["CLOSED"].includes(i.state)).length,
+      total: issues.length,
+    });
+  };
+
   const activeTasks = MOCK_TASKS.filter((t) =>
     ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(t.state),
   ).length;
@@ -33,7 +51,7 @@ export default function HomeScreen({ navigation }) {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
         <Text style={styles.welcomeText}>Welcome, Rishi 👷</Text>
-        <Text style={styles.descText}>Your assigned work orders for today</Text>
+        <Text style={styles.descText}>Your dashboard for today</Text>
 
         {/* Quick Stats Row */}
         <View style={styles.statsRow}>
@@ -41,13 +59,13 @@ export default function HomeScreen({ navigation }) {
             <Text style={[styles.statNum, { color: "#1e40af" }]}>
               {activeTasks}
             </Text>
-            <Text style={styles.statLabel}>Active</Text>
+            <Text style={styles.statLabel}>Active Tasks</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: "#fee2e2" }]}>
             <Text style={[styles.statNum, { color: "#ef4444" }]}>
-              {highPriority}
+              {issuesCount.active}
             </Text>
-            <Text style={styles.statLabel}>High Priority</Text>
+            <Text style={styles.statLabel}>Open Issues</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: "#dcfce7" }]}>
             <Text style={[styles.statNum, { color: "#16a34a" }]}>
@@ -57,7 +75,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Primary Action: View Work Orders */}
+        {/* Primary Action: Work Orders */}
         <TouchableOpacity
           style={styles.primaryBtn}
           onPress={() => navigation.navigate("TaskList")}
@@ -66,13 +84,27 @@ export default function HomeScreen({ navigation }) {
           <View style={{ flex: 1 }}>
             <Text style={styles.primaryBtnText}>📋 My Work Orders</Text>
             <Text style={styles.primaryBtnSub}>
-              View and manage your assigned tasks
+              {activeTasks} active • {highPriority} high priority
             </Text>
           </View>
           <Text style={styles.primaryBtnArrow}>→</Text>
         </TouchableOpacity>
 
-        {/* Quick Actions */}
+        {/* Issue Tracker */}
+        <TouchableOpacity
+          style={styles.issuesBtn}
+          onPress={() => navigation.navigate("IssuesList")}
+          activeOpacity={0.85}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.issuesBtnText}>⚠️ Issue Tracker</Text>
+            <Text style={styles.issuesBtnSub}>
+              {issuesCount.active} active • {issuesCount.total} total
+            </Text>
+          </View>
+          <Text style={styles.primaryBtnArrow}>→</Text>
+        </TouchableOpacity>
+
         <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
 
         <TouchableOpacity
@@ -84,20 +116,23 @@ export default function HomeScreen({ navigation }) {
           <View style={{ flex: 1 }}>
             <Text style={styles.secondaryBtnText}>Quick Survey</Text>
             <Text style={styles.secondaryBtnSub}>
-              Submit a standalone survey (no task)
+              Standalone survey (no task)
             </Text>
           </View>
           <Text style={styles.secondaryArrow}>→</Text>
         </TouchableOpacity>
 
-        {/* Info Card */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>📋 Today's Workflow</Text>
+          <Text style={styles.infoTitle}>📋 Workflow Overview</Text>
           <Text style={styles.infoItem}>1️⃣ View work orders</Text>
-          <Text style={styles.infoItem}>2️⃣ Accept the task</Text>
-          <Text style={styles.infoItem}>3️⃣ Travel to site & start work</Text>
-          <Text style={styles.infoItem}>4️⃣ Fill survey with photos</Text>
-          <Text style={styles.infoItem}>5️⃣ Submit for manager review</Text>
+          <Text style={styles.infoItem}>2️⃣ Accept & start task</Text>
+          <Text style={styles.infoItem}>3️⃣ Travel to site (GPS-tracked)</Text>
+          <Text style={styles.infoItem}>
+            4️⃣ Fill survey + watermarked photos
+          </Text>
+          <Text style={styles.infoItem}>
+            5️⃣ Issues auto-tracked in lifecycle
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -157,6 +192,22 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: "#fff", fontSize: 17, fontWeight: "800" },
   primaryBtnSub: { color: "#c5d8ff", fontSize: 12, marginTop: 2 },
   primaryBtnArrow: { color: "#fff", fontSize: 24, fontWeight: "300" },
+
+  issuesBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#dc2626",
+    borderRadius: 14,
+    padding: 18,
+    marginTop: 12,
+    elevation: 4,
+    shadowColor: "#dc2626",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  issuesBtnText: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  issuesBtnSub: { color: "#fecaca", fontSize: 12, marginTop: 2 },
 
   sectionLabel: {
     fontSize: 11,

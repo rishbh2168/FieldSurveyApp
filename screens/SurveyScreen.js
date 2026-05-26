@@ -2,7 +2,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import {
   Alert,
-  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -14,6 +13,8 @@ import {
 } from "react-native";
 
 import GPSBanner from "../components_new/GPSBanner";
+import WatermarkedPhoto from "../components_new/WatermarkedPhoto";
+import { addIssue, createIssue } from "../utils/issues";
 import {
   calculateDistance,
   getCurrentLocation,
@@ -84,13 +85,21 @@ const QUESTIONS = [
   },
   {
     id: 8,
+    type: "radio",
+    label: "Issue Severity",
+    question: "What is the severity of the issue?",
+    options: ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+    required: false,
+  },
+  {
+    id: 9,
     type: "photo",
     label: "Issue Photo",
     question: "Attach a photo of the issue / defect (if applicable).",
     required: false,
   },
   {
-    id: 9,
+    id: 10,
     type: "text",
     label: "Additional Notes",
     question: "Any additional notes or observations?",
@@ -101,10 +110,8 @@ const QUESTIONS = [
 ];
 
 export default function SurveyScreen({ navigation, route }) {
-  // Sprint 2: Task context (if survey opened from a task)
   const task = route.params?.task;
 
-  // Use task's site if available, otherwise default SITE_LOCATION
   const activeSite = task
     ? {
         latitude: task.siteLocation.latitude,
@@ -115,11 +122,8 @@ export default function SurveyScreen({ navigation, route }) {
       }
     : SITE_LOCATION;
 
-  // Pre-fill site address from task if available
   const [answers, setAnswers] = useState(task ? { 2: task.siteName } : {});
   const [photos, setPhotos] = useState({});
-
-  // GPS State
   const [location, setLocation] = useState(null);
   const [distance, setDistance] = useState(null);
   const [geoStatus, setGeoStatus] = useState(null);
@@ -165,42 +169,47 @@ export default function SurveyScreen({ navigation, route }) {
     setAnswers((prev) => ({ ...prev, [id]: value }));
 
   const handlePickPhoto = async (id) => {
-    Alert.alert("Attach Photo", "Choose option", [
-      {
-        text: "📷  Take Photo",
-        onPress: async () => {
-          const { status } = await ImagePicker.requestCameraPermissionsAsync();
-          if (status !== "granted") {
-            Alert.alert("Camera permission required");
-            return;
-          }
-          const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            quality: 0.75,
-          });
-          if (!result.canceled)
-            setPhotos((prev) => ({ ...prev, [id]: result.assets[0].uri }));
+    Alert.alert(
+      "Attach Photo",
+      "For tamper-proof evidence, take a new photo:",
+      [
+        {
+          text: "📷  Take Photo (Recommended)",
+          onPress: async () => {
+            const { status } =
+              await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== "granted") {
+              Alert.alert("Camera permission required");
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: false,
+              quality: 0.75,
+            });
+            if (!result.canceled)
+              setPhotos((prev) => ({ ...prev, [id]: result.assets[0].uri }));
+          },
         },
-      },
-      {
-        text: "🖼  Choose from Gallery",
-        onPress: async () => {
-          const { status } =
-            await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (status !== "granted") {
-            Alert.alert("Gallery permission required");
-            return;
-          }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            allowsEditing: true,
-            quality: 0.75,
-          });
-          if (!result.canceled)
-            setPhotos((prev) => ({ ...prev, [id]: result.assets[0].uri }));
+        {
+          text: "🖼  Gallery (Not Recommended)",
+          onPress: async () => {
+            const { status } =
+              await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== "granted") {
+              Alert.alert("Gallery permission required");
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              allowsEditing: false,
+              quality: 0.75,
+            });
+            if (!result.canceled)
+              setPhotos((prev) => ({ ...prev, [id]: result.assets[0].uri }));
+          },
         },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+        { text: "Cancel", style: "cancel" },
+      ],
+    );
   };
 
   const handleRemovePhoto = (id) => {
@@ -279,7 +288,24 @@ export default function SurveyScreen({ navigation, route }) {
       : proceedToSubmit(flag, "No reason provided");
   };
 
-  const proceedToSubmit = (flag, reason) => {
+  const proceedToSubmit = async (flag, reason) => {
+    // ─── SPRINT 3: Auto-create issue if "Yes" was selected ───
+    let createdIssueId = null;
+    if (answers[6] === "Yes" && answers[7]) {
+      const newIssue = createIssue({
+        description: answers[7],
+        severity: answers[8] || "MEDIUM",
+        parentTaskId: task?.id || "STANDALONE",
+        parentSiteId: activeSite.siteId,
+        siteName: activeSite.name,
+        reportedBy: answers[1] || "Unknown Engineer",
+        photoUri: photos[9] || null,
+        location,
+      });
+      await addIssue(newIssue);
+      createdIssueId = newIssue.id;
+    }
+
     navigation.navigate("Success", {
       answers,
       photos,
@@ -290,7 +316,8 @@ export default function SurveyScreen({ navigation, route }) {
       siteId: activeSite.siteId,
       submissionFlag: flag,
       offSiteReason: reason || "",
-      task, // Sprint 2: pass task to success
+      task,
+      createdIssueId, // Sprint 3: pass created issue ID
     });
   };
 
@@ -353,14 +380,20 @@ export default function SurveyScreen({ navigation, route }) {
               >
                 <Text style={styles.photoIcon}>📷</Text>
                 <Text style={styles.photoButtonText}>Tap to Attach Photo</Text>
-                <Text style={styles.photoHint}>Camera or Gallery</Text>
+                <Text style={styles.photoHint}>
+                  Will be watermarked with GPS + Time + ID
+                </Text>
               </TouchableOpacity>
             ) : (
               <View>
-                <Image
-                  source={{ uri: photos[q.id] }}
-                  style={styles.photoPreview}
-                  resizeMode="cover"
+                {/* SPRINT 3: Watermarked photo preview */}
+                <WatermarkedPhoto
+                  photoUri={photos[q.id]}
+                  location={location}
+                  engineerId={answers[1] || "EMP-UNKNOWN"}
+                  taskId={task?.id}
+                  siteName={activeSite.name}
+                  timestamp={new Date().toISOString()}
                 />
                 <View style={styles.photoActions}>
                   <TouchableOpacity
@@ -397,6 +430,7 @@ export default function SurveyScreen({ navigation, route }) {
 
   const submitInfo = getSubmitButtonInfo();
   const priorityConfig = task ? PRIORITIES[task.priority] : null;
+  const showIssueFields = answers[6] === "Yes";
 
   return (
     <SafeAreaView style={styles.container}>
@@ -422,7 +456,6 @@ export default function SurveyScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Sprint 2: Task Context Banner */}
         {task && (
           <View style={styles.taskBanner}>
             <View style={styles.taskBannerHeader}>
@@ -465,15 +498,29 @@ export default function SurveyScreen({ navigation, route }) {
         </Text>
 
         {QUESTIONS.map((q, index) => {
+          // Show issue-related fields only if "Yes" was selected
+          const isIssueField = [7, 8, 9].includes(q.id);
+          if (isIssueField && !showIssueFields) return null;
+
           const isAnswered =
             q.type === "photo" ? !!photos[q.id] : !!answers[q.id];
           return (
             <View
               key={q.id}
-              style={[styles.card, isAnswered && styles.cardAnswered]}
+              style={[
+                styles.card,
+                isAnswered && styles.cardAnswered,
+                isIssueField && styles.issueCard,
+              ]}
             >
               <View style={styles.questionHeader}>
-                <View style={[styles.qNum, isAnswered && styles.qNumDone]}>
+                <View
+                  style={[
+                    styles.qNum,
+                    isAnswered && styles.qNumDone,
+                    isIssueField && styles.qNumIssue,
+                  ]}
+                >
                   <Text style={styles.qNumText}>
                     {isAnswered ? "✓" : index + 1}
                   </Text>
@@ -484,12 +531,26 @@ export default function SurveyScreen({ navigation, route }) {
                     <Text style={styles.requiredText}>Required</Text>
                   </View>
                 )}
+                {isIssueField && (
+                  <View style={styles.issueBadge}>
+                    <Text style={styles.issueBadgeText}>Issue</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.questionText}>{q.question}</Text>
               {renderQuestion(q)}
             </View>
           );
         })}
+
+        {showIssueFields && (
+          <View style={styles.infoBox}>
+            <Text style={styles.infoBoxText}>
+              ℹ️ An issue will be auto-created in the Issue Tracker on
+              submission
+            </Text>
+          </View>
+        )}
 
         <TouchableOpacity
           style={[styles.submitBtnBase, submitInfo.style]}
@@ -551,8 +612,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: "center",
   },
-
-  // Task banner
   taskBanner: {
     backgroundColor: "#fff",
     borderRadius: 14,
@@ -586,7 +645,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   taskBannerSite: { fontSize: 12, color: "#1e40af", fontWeight: "700" },
-
   card: {
     backgroundColor: "#fff",
     borderRadius: 14,
@@ -601,10 +659,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   cardAnswered: { borderColor: "#bbf7d0", backgroundColor: "#f0fdf4" },
+  issueCard: { borderColor: "#fecaca", backgroundColor: "#fef3f3" },
   questionHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
+    flexWrap: "wrap",
+    gap: 4,
   },
   qNum: {
     width: 26,
@@ -616,6 +677,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   qNumDone: { backgroundColor: "#16a34a" },
+  qNumIssue: { backgroundColor: "#dc2626" },
   qNumText: { color: "#fff", fontSize: 12, fontWeight: "800" },
   qLabel: {
     flex: 1,
@@ -632,6 +694,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   requiredText: { fontSize: 11, color: "#ef4444", fontWeight: "700" },
+  issueBadge: {
+    backgroundColor: "#dc2626",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  issueBadgeText: { fontSize: 10, color: "#fff", fontWeight: "700" },
   questionText: {
     fontSize: 15,
     fontWeight: "600",
@@ -692,14 +761,8 @@ const styles = StyleSheet.create({
   },
   photoIcon: { fontSize: 32, marginBottom: 6 },
   photoButtonText: { fontSize: 14, fontWeight: "700", color: "#1a73e8" },
-  photoHint: { fontSize: 12, color: "#88a", marginTop: 3 },
-  photoPreview: {
-    width: "100%",
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 8,
-  },
-  photoActions: { flexDirection: "row", gap: 10 },
+  photoHint: { fontSize: 11, color: "#88a", marginTop: 4, textAlign: "center" },
+  photoActions: { flexDirection: "row", gap: 10, marginTop: 8 },
   photoChangeBtn: {
     flex: 1,
     backgroundColor: "#e8f0fe",
@@ -716,6 +779,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   photoRemoveBtnText: { fontSize: 13, color: "#ef4444", fontWeight: "700" },
+  infoBox: {
+    backgroundColor: "#fef3f3",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#dc2626",
+  },
+  infoBoxText: {
+    fontSize: 12,
+    color: "#7f1d1d",
+    fontWeight: "700",
+    textAlign: "center",
+  },
   submitBtnBase: {
     borderRadius: 14,
     padding: 18,
