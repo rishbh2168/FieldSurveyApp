@@ -1,7 +1,9 @@
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -14,6 +16,8 @@ import {
 
 import GPSBanner from "../components_new/GPSBanner";
 import WatermarkedPhoto from "../components_new/WatermarkedPhoto";
+import { useAuth } from "../context/AuthContext";
+import { saveSurveyToFirestore } from "../utils/firestore";
 import { addIssue, createIssue } from "../utils/issues";
 import {
   calculateDistance,
@@ -23,9 +27,11 @@ import {
   requestLocationPermission,
   SITE_LOCATION,
 } from "../utils/location";
+import { getTemplateById } from "../utils/surveyTemplates";
 import { PRIORITIES } from "../utils/tasks";
 
-const QUESTIONS = [
+// Default questions (fallback if no template assigned)
+const DEFAULT_QUESTIONS = [
   {
     id: 1,
     type: "text",
@@ -110,6 +116,7 @@ const QUESTIONS = [
 ];
 
 export default function SurveyScreen({ navigation, route }) {
+  const { user } = useAuth();
   const task = route.params?.task;
 
   const activeSite = task
@@ -122,16 +129,47 @@ export default function SurveyScreen({ navigation, route }) {
       }
     : SITE_LOCATION;
 
+  const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
+  const [templateName, setTemplateName] = useState("General Site Survey");
+  const [templateLoading, setTemplateLoading] = useState(!!task?.templateId);
   const [answers, setAnswers] = useState(task ? { 2: task.siteName } : {});
   const [photos, setPhotos] = useState({});
+  const [customFields, setCustomFields] = useState([]);
+  const [customAnswers, setCustomAnswers] = useState({});
+  const [customPhotos, setCustomPhotos] = useState({});
+  const [showCustomFieldModal, setShowCustomFieldModal] = useState(false);
+  const [newFieldName, setNewFieldName] = useState("");
+  const [newFieldType, setNewFieldType] = useState("text");
+  const [newFieldOptions, setNewFieldOptions] = useState("");
   const [location, setLocation] = useState(null);
   const [distance, setDistance] = useState(null);
   const [geoStatus, setGeoStatus] = useState(null);
   const [gpsLoading, setGpsLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchLocation();
+    loadTemplate();
   }, []);
+
+  // Load survey template if task has one assigned
+  const loadTemplate = async () => {
+    if (task?.templateId) {
+      setTemplateLoading(true);
+      try {
+        const template = await getTemplateById(task.templateId);
+        if (template && template.questions) {
+          setQuestions(template.questions);
+          setTemplateName(template.name);
+          // Pre-fill site location from task
+          setAnswers((prev) => ({ ...prev, 2: task.siteName }));
+        }
+      } catch (error) {
+        console.error("Template load failed, using default:", error);
+      }
+      setTemplateLoading(false);
+    }
+  };
 
   const fetchLocation = async () => {
     setGpsLoading(true);
@@ -156,12 +194,14 @@ export default function SurveyScreen({ navigation, route }) {
     setGpsLoading(false);
   };
 
-  const answeredTextRadio = QUESTIONS.filter((q) => q.type !== "photo").filter(
-    (q) => answers[q.id] && answers[q.id].toString().trim() !== "",
-  ).length;
+  const answeredTextRadio = questions
+    .filter((q) => q.type !== "photo")
+    .filter(
+      (q) => answers[q.id] && answers[q.id].toString().trim() !== "",
+    ).length;
   const answeredPhotos = Object.keys(photos).length;
   const totalAnswered = answeredTextRadio + answeredPhotos;
-  const progress = Math.min(totalAnswered / QUESTIONS.length, 1);
+  const progress = Math.min(totalAnswered / questions.length, 1);
 
   const handleTextChange = (id, value) =>
     setAnswers((prev) => ({ ...prev, [id]: value }));
@@ -229,7 +269,7 @@ export default function SurveyScreen({ navigation, route }) {
   };
 
   const handleSubmit = () => {
-    const missing = QUESTIONS.filter((q) => {
+    const missing = questions.filter((q) => {
       if (!q.required) return false;
       if (q.type === "photo") return !photos[q.id];
       return !answers[q.id] || answers[q.id].toString().trim() === "";
@@ -289,6 +329,8 @@ export default function SurveyScreen({ navigation, route }) {
   };
 
   const proceedToSubmit = async (flag, reason) => {
+    setSubmitting(true);
+
     // ─── SPRINT 3: Auto-create issue if "Yes" was selected ───
     let createdIssueId = null;
     if (answers[6] === "Yes" && answers[7]) {
@@ -306,6 +348,37 @@ export default function SurveyScreen({ navigation, route }) {
       createdIssueId = newIssue.id;
     }
 
+    // ─── SPRINT 5B: Save to Firestore ───
+    const firestoreResult = await saveSurveyToFirestore({
+      answers,
+      photos,
+      location,
+      distance,
+      siteName: activeSite.name,
+      siteId: activeSite.siteId,
+      submissionFlag: flag,
+      offSiteReason: reason || "",
+      task,
+      createdIssueId,
+      userId: user?.uid || "anonymous",
+      userEmail: user?.email || "",
+      userName: user?.displayName || "",
+      // Sprint 5C: Custom fields
+      customFields: customFields.map((f) => ({
+        id: f.id,
+        label: f.label,
+        type: f.type,
+        options: f.options || null,
+      })),
+      customAnswers,
+      customPhotos:
+        Object.keys(customPhotos).length > 0
+          ? { pending: true, count: Object.keys(customPhotos).length }
+          : null,
+    });
+
+    setSubmitting(false);
+
     navigation.navigate("Success", {
       answers,
       photos,
@@ -317,8 +390,194 @@ export default function SurveyScreen({ navigation, route }) {
       submissionFlag: flag,
       offSiteReason: reason || "",
       task,
-      createdIssueId, // Sprint 3: pass created issue ID
+      createdIssueId,
+      cloudSync: firestoreResult, // Sprint 5B: pass sync result
+      customFields, // Sprint 5C: custom field definitions
+      customAnswers, // Sprint 5C: custom field answers
+      customPhotos, // Sprint 5C: custom field photos
     });
+  };
+
+  // ─── CUSTOM FIELDS HANDLERS ───
+  const addCustomField = () => {
+    if (!newFieldName.trim()) {
+      Alert.alert(
+        "Field Name Required",
+        "Please enter a name for the custom field.",
+      );
+      return;
+    }
+
+    const fieldId = `custom_${Date.now()}`;
+    const newField = {
+      id: fieldId,
+      label: newFieldName.trim(),
+      type: newFieldType,
+      required: false,
+      isCustom: true,
+    };
+
+    // If radio type, parse options
+    if (newFieldType === "radio") {
+      const opts = newFieldOptions
+        .split(",")
+        .map((o) => o.trim())
+        .filter((o) => o.length > 0);
+      if (opts.length < 2) {
+        Alert.alert(
+          "Options Required",
+          "Please enter at least 2 options separated by commas.\n\nExample: Good, Fair, Poor",
+        );
+        return;
+      }
+      newField.options = opts;
+    }
+
+    setCustomFields((prev) => [...prev, newField]);
+    setNewFieldName("");
+    setNewFieldType("text");
+    setNewFieldOptions("");
+    setShowCustomFieldModal(false);
+  };
+
+  const removeCustomField = (fieldId) => {
+    Alert.alert(
+      "Remove Field",
+      "Are you sure you want to remove this custom field?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => {
+            setCustomFields((prev) => prev.filter((f) => f.id !== fieldId));
+            setCustomAnswers((prev) => {
+              const updated = { ...prev };
+              delete updated[fieldId];
+              return updated;
+            });
+            setCustomPhotos((prev) => {
+              const updated = { ...prev };
+              delete updated[fieldId];
+              return updated;
+            });
+          },
+        },
+      ],
+    );
+  };
+
+  const handleCustomTextChange = (fieldId, value) => {
+    setCustomAnswers((prev) => ({ ...prev, [fieldId]: value }));
+  };
+
+  const handleCustomRadioSelect = (fieldId, option) => {
+    setCustomAnswers((prev) => ({ ...prev, [fieldId]: option }));
+  };
+
+  const handleCustomPhoto = async (fieldId) => {
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setCustomPhotos((prev) => ({ ...prev, [fieldId]: result.assets[0].uri }));
+    }
+  };
+
+  const renderCustomField = (field) => {
+    switch (field.type) {
+      case "text":
+        return (
+          <TextInput
+            style={styles.input}
+            placeholder={`Enter ${field.label}...`}
+            placeholderTextColor="#aab"
+            value={customAnswers[field.id] || ""}
+            onChangeText={(val) => handleCustomTextChange(field.id, val)}
+          />
+        );
+      case "multiline":
+        return (
+          <TextInput
+            style={[styles.input, styles.inputMulti]}
+            placeholder={`Enter ${field.label}...`}
+            placeholderTextColor="#aab"
+            multiline
+            numberOfLines={4}
+            value={customAnswers[field.id] || ""}
+            onChangeText={(val) => handleCustomTextChange(field.id, val)}
+            textAlignVertical="top"
+          />
+        );
+      case "radio":
+        return (
+          <View style={styles.radioGroup}>
+            {(field.options || []).map((opt) => {
+              const selected = customAnswers[field.id] === opt;
+              return (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.radioOption, selected && styles.radioSelected]}
+                  onPress={() => handleCustomRadioSelect(field.id, opt)}
+                  activeOpacity={0.75}
+                >
+                  <View
+                    style={[
+                      styles.radioCircle,
+                      selected && styles.radioCircleFilled,
+                    ]}
+                  >
+                    {selected && <View style={styles.radioCircleInner} />}
+                  </View>
+                  <Text
+                    style={[
+                      styles.radioText,
+                      selected && styles.radioTextSelected,
+                    ]}
+                  >
+                    {opt}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        );
+      case "photo":
+        return (
+          <View>
+            {!customPhotos[field.id] ? (
+              <TouchableOpacity
+                style={styles.photoButton}
+                onPress={() => handleCustomPhoto(field.id)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.photoIcon}>📷</Text>
+                <Text style={styles.photoButtonText}>Tap to Attach Photo</Text>
+              </TouchableOpacity>
+            ) : (
+              <View>
+                <WatermarkedPhoto
+                  photoUri={customPhotos[field.id]}
+                  location={location}
+                  engineerId={answers[1] || "EMP-UNKNOWN"}
+                  taskId={task?.id}
+                  siteName={activeSite.name}
+                  timestamp={new Date().toISOString()}
+                />
+                <TouchableOpacity
+                  style={styles.photoChangeBtn}
+                  onPress={() => handleCustomPhoto(field.id)}
+                >
+                  <Text style={styles.photoChangeBtnText}>🔄 Change</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        );
+      default:
+        return null;
+    }
   };
 
   const renderQuestion = (q) => {
@@ -432,6 +691,25 @@ export default function SurveyScreen({ navigation, route }) {
   const priorityConfig = task ? PRIORITIES[task.priority] : null;
   const showIssueFields = answers[6] === "Yes";
 
+  if (templateLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a73e8" />
+        <View
+          style={[
+            styles.container,
+            { justifyContent: "center", alignItems: "center" },
+          ]}
+        >
+          <ActivityIndicator size="large" color="#1a73e8" />
+          <Text style={{ marginTop: 12, color: "#666", fontSize: 14 }}>
+            Loading survey template...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a73e8" />
@@ -442,7 +720,7 @@ export default function SurveyScreen({ navigation, route }) {
         >
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Site Survey</Text>
+        <Text style={styles.headerTitle}>{templateName}</Text>
         <Text style={styles.progressLabel}>{Math.round(progress * 100)}%</Text>
       </View>
       <View style={styles.progressBarBg}>
@@ -497,7 +775,7 @@ export default function SurveyScreen({ navigation, route }) {
           be filled before submitting.
         </Text>
 
-        {QUESTIONS.map((q, index) => {
+        {questions.map((q, index) => {
           // Show issue-related fields only if "Yes" was selected
           const isIssueField = [7, 8, 9].includes(q.id);
           if (isIssueField && !showIssueFields) return null;
@@ -552,12 +830,90 @@ export default function SurveyScreen({ navigation, route }) {
           </View>
         )}
 
+        {/* ─── CUSTOM FIELDS SECTION ─── */}
+        {customFields.length > 0 && (
+          <View style={styles.customFieldsHeader}>
+            <Text style={styles.customFieldsTitle}>📝 Custom Fields</Text>
+            <Text style={styles.customFieldsSub}>
+              Added by you for this survey
+            </Text>
+          </View>
+        )}
+
+        {customFields.map((field, index) => {
+          const isAnswered =
+            field.type === "photo"
+              ? !!customPhotos[field.id]
+              : !!customAnswers[field.id];
+          return (
+            <View
+              key={field.id}
+              style={[
+                styles.card,
+                isAnswered && styles.cardAnswered,
+                styles.customCard,
+              ]}
+            >
+              <View style={styles.questionHeader}>
+                <View
+                  style={[
+                    styles.qNum,
+                    isAnswered && styles.qNumDone,
+                    { backgroundColor: "#8b5cf620" },
+                  ]}
+                >
+                  <Text style={styles.qNumText}>{isAnswered ? "✓" : "+"}</Text>
+                </View>
+                <Text style={styles.qLabel}>{field.label}</Text>
+                <View style={styles.customBadge}>
+                  <Text style={styles.customBadgeText}>Custom</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.removeFieldBtn}
+                  onPress={() => removeCustomField(field.id)}
+                >
+                  <Text style={styles.removeFieldText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              {renderCustomField(field)}
+            </View>
+          );
+        })}
+
         <TouchableOpacity
-          style={[styles.submitBtnBase, submitInfo.style]}
+          style={styles.addCustomFieldBtn}
+          onPress={() => setShowCustomFieldModal(true)}
+          activeOpacity={0.75}
+        >
+          <Text style={styles.addCustomFieldIcon}>➕</Text>
+          <View>
+            <Text style={styles.addCustomFieldText}>Add Custom Field</Text>
+            <Text style={styles.addCustomFieldSub}>
+              Add extra fields not in the template
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.submitBtnBase,
+            submitInfo.style,
+            submitting && { opacity: 0.6 },
+          ]}
           onPress={handleSubmit}
           activeOpacity={0.85}
+          disabled={submitting}
         >
-          <Text style={styles.submitBtnText}>{submitInfo.text}</Text>
+          {submitting ? (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+            >
+              <ActivityIndicator color="#fff" size="small" />
+              <Text style={styles.submitBtnText}>Uploading to Cloud...</Text>
+            </View>
+          ) : (
+            <Text style={styles.submitBtnText}>{submitInfo.text}</Text>
+          )}
         </TouchableOpacity>
 
         {geoStatus?.status === "far" && (
@@ -568,6 +924,88 @@ export default function SurveyScreen({ navigation, route }) {
 
         <View style={{ height: 48 }} />
       </ScrollView>
+
+      {/* ─── ADD CUSTOM FIELD MODAL ─── */}
+      <Modal
+        visible={showCustomFieldModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCustomFieldModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>➕ Add Custom Field</Text>
+              <TouchableOpacity onPress={() => setShowCustomFieldModal(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>Field Name</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="e.g. Cable Color, Room Temperature..."
+              placeholderTextColor="#aab"
+              value={newFieldName}
+              onChangeText={setNewFieldName}
+              autoFocus
+            />
+
+            <Text style={styles.modalLabel}>Field Type</Text>
+            <View style={styles.fieldTypeRow}>
+              {[
+                { key: "text", label: "Short Text", icon: "📝" },
+                { key: "multiline", label: "Long Text", icon: "📄" },
+                { key: "radio", label: "Choice", icon: "🔘" },
+                { key: "photo", label: "Photo", icon: "📷" },
+              ].map((ft) => (
+                <TouchableOpacity
+                  key={ft.key}
+                  style={[
+                    styles.fieldTypeCard,
+                    newFieldType === ft.key && styles.fieldTypeSelected,
+                  ]}
+                  onPress={() => setNewFieldType(ft.key)}
+                >
+                  <Text style={styles.fieldTypeIcon}>{ft.icon}</Text>
+                  <Text
+                    style={[
+                      styles.fieldTypeLabel,
+                      newFieldType === ft.key && {
+                        color: "#1a73e8",
+                        fontWeight: "800",
+                      },
+                    ]}
+                  >
+                    {ft.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {newFieldType === "radio" && (
+              <View>
+                <Text style={styles.modalLabel}>Options (comma-separated)</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. Good, Fair, Poor, Critical"
+                  placeholderTextColor="#aab"
+                  value={newFieldOptions}
+                  onChangeText={setNewFieldOptions}
+                />
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.modalAddBtn}
+              onPress={addCustomField}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.modalAddBtnText}>Add Field to Survey</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -835,4 +1273,127 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontStyle: "italic",
   },
+
+  // ─── CUSTOM FIELDS STYLES ───
+  customFieldsHeader: {
+    marginTop: 20,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  customFieldsTitle: { fontSize: 16, fontWeight: "800", color: "#8b5cf6" },
+  customFieldsSub: { fontSize: 11, color: "#9aa0a6", marginTop: 2 },
+
+  customCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: "#8b5cf6",
+  },
+  customBadge: {
+    backgroundColor: "#ede9fe",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  customBadgeText: { fontSize: 10, fontWeight: "700", color: "#8b5cf6" },
+
+  removeFieldBtn: {
+    marginLeft: "auto",
+    backgroundColor: "#fee2e2",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeFieldText: { fontSize: 12, color: "#ef4444", fontWeight: "800" },
+
+  addCustomFieldBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 12,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: "#8b5cf6",
+    borderStyle: "dashed",
+    gap: 12,
+  },
+  addCustomFieldIcon: { fontSize: 22 },
+  addCustomFieldText: { fontSize: 14, fontWeight: "700", color: "#8b5cf6" },
+  addCustomFieldSub: { fontSize: 11, color: "#9aa0a6", marginTop: 1 },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#1a1a2e" },
+  modalClose: { fontSize: 20, color: "#9aa0a6", padding: 4 },
+  modalLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#555",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  modalInput: {
+    backgroundColor: "#f5f7ff",
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 15,
+    color: "#1a1a2e",
+    borderWidth: 1,
+    borderColor: "#e0e7ff",
+  },
+  fieldTypeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
+  fieldTypeCard: {
+    flex: 1,
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#e0e7ff",
+    backgroundColor: "#f5f7ff",
+  },
+  fieldTypeSelected: {
+    borderColor: "#1a73e8",
+    backgroundColor: "#e8f0fe",
+  },
+  fieldTypeIcon: { fontSize: 22, marginBottom: 4 },
+  fieldTypeLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#666",
+    textAlign: "center",
+  },
+  modalAddBtn: {
+    backgroundColor: "#8b5cf6",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  modalAddBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
 });

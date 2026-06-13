@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FieldSurvey Pro — Manager Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blue: #1a73e8;
+  --blue-dark: #1557b0;
+  --blue-light: #e8f0fe;
+  --bg: #f0f4ff;
+  --card: #ffffff;
+  --text: #1a1a2e;
+  --text-secondary: #5f6368;
+  --text-muted: #9aa0a6;
+  --border: #e0e7ff;
+  --green: #16a34a;
+  --green-bg: #dcfce7;
+  --red: #ef4444;
+  --red-bg: #fee2e2;
+  --amber: #f59e0b;
+  --amber-bg: #fef3c7;
+  --purple: #8b5cf6;
+  --purple-bg: #ede9fe;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 24px rgba(26,115,232,0.12);
+}
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ─── AUTH SCREEN ─── */
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-card {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.auth-icon { font-size: 56px; margin-bottom: 8px; }
+.auth-title { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+.auth-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 32px; }
+
+.auth-card input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #f5f7ff;
+  margin-bottom: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.auth-card input:focus { border-color: var(--blue); }
+
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+
+.auth-btn:hover { background: var(--blue-dark); }
+.auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.auth-error { color: var(--red); font-size: 13px; margin-top: 12px; }
+.auth-badge { display: inline-block; background: var(--blue-light); color: var(--blue); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 20px; letter-spacing: 0.5px; }
+
+/* ─── LAYOUT ─── */
+.app { display: none; }
+.app.active { display: block; }
+.auth-container.hidden { display: none; }
+
+.topbar {
+  background: var(--blue);
+  padding: 0 32px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(26,115,232,0.2);
+}
+
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-icon { font-size: 28px; }
+.topbar-title { color: #fff; font-size: 18px; font-weight: 800; }
+.topbar-badge { background: rgba(255,255,255,0.2); color: #fff; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-user { color: rgba(255,255,255,0.8); font-size: 13px; }
+.topbar-user strong { color: #fff; }
+
+.logout-btn {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+.logout-btn:hover { background: rgba(255,255,255,0.25); }
+
+/* ─── TABS ─── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 16px 32px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.tab {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.tab:hover { color: var(--blue); }
+.tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--blue-light);
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  padding: 0 6px;
+  margin-left: 6px;
+}
+
+/* ─── CONTENT ─── */
+.content { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+.section { display: none; }
+.section.active { display: block; }
+
+/* ─── STATS ROW ─── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--blue);
+}
+
+.stat-card.green { border-left-color: var(--green); }
+.stat-card.red { border-left-color: var(--red); }
+.stat-card.amber { border-left-color: var(--amber); }
+.stat-card.purple { border-left-color: var(--purple); }
+
+.stat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-value { font-size: 32px; font-weight: 900; margin-top: 4px; }
+.stat-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ─── TABLE ─── */
+.table-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.table-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table-title { font-size: 15px; font-weight: 700; }
+
+.table-filters {
+  display: flex;
+  gap: 6px;
+}
+
+.filter-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover { border-color: var(--blue); color: var(--blue); }
+.filter-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  padding: 10px 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  background: #fafbff;
+}
+
+td {
+  padding: 14px 20px;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f2f5;
+  vertical-align: middle;
+}
+
+tr:hover { background: #f8faff; }
+
+/* ─── BADGES ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-blue { background: var(--blue-light); color: var(--blue); }
+.badge-green { background: var(--green-bg); color: var(--green); }
+.badge-red { background: var(--red-bg); color: var(--red); }
+.badge-amber { background: var(--amber-bg); color: var(--amber); }
+.badge-purple { background: var(--purple-bg); color: var(--purple); }
+.badge-gray { background: #f3f4f6; color: #6b7280; }
+
+/* ─── ACTION BUTTONS ─── */
+.action-btn {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.action-btn.approve { background: var(--green-bg); color: var(--green); }
+.action-btn.approve:hover { background: var(--green); color: #fff; }
+.action-btn.flag { background: var(--red-bg); color: var(--red); }
+.action-btn.flag:hover { background: var(--red); color: #fff; }
+.action-btn.view { background: var(--blue-light); color: var(--blue); }
+.action-btn.view:hover { background: var(--blue); color: #fff; }
+
+/* ─── DETAIL MODAL ─── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal {
+  background: var(--card);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title { font-size: 17px; font-weight: 800; }
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+}
+
+.modal-body { padding: 24px; }
+
+.detail-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.detail-label {
+  flex-shrink: 0;
+  width: 130px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding-top: 2px;
+}
+
+.detail-value { font-size: 14px; color: var(--text); }
+
+/* ─── LOADING ─── */
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 768px) {
+  .topbar { padding: 0 16px; }
+  .tabs { padding: 12px 16px 0; overflow-x: auto; }
+  .content { padding: 16px; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  table { font-size: 12px; }
+  th, td { padding: 10px 12px; }
+  .detail-row { flex-direction: column; gap: 2px; }
+  .detail-label { width: auto; }
+}
+
+/* ─── REFRESH INDICATOR ─── */
+.refresh-bar {
+  background: var(--blue-light);
+  color: var(--blue);
+  text-align: center;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: none;
+}
+
+.refresh-bar.active { display: block; }
+
+/* ─── FORM INPUTS ─── */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; background: #f5f7ff; outline: none; transition: border-color 0.2s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--blue); }
+.form-textarea { min-height: 80px; resize: vertical; }
+.form-select { cursor: pointer; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-submit { width: 100%; padding: 14px; background: var(--blue); color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer; margin-top: 8px; transition: background 0.2s; }
+.form-submit:hover { background: var(--blue-dark); }
+.form-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+.template-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.template-card { padding: 14px; border: 2px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.15s; text-align: center; }
+.template-card:hover { border-color: var(--blue); background: var(--blue-light); }
+.template-card.selected { border-color: var(--blue); background: var(--blue-light); }
+.template-card .tpl-icon { font-size: 28px; margin-bottom: 4px; }
+.template-card .tpl-name { font-size: 13px; font-weight: 700; }
+.template-card .tpl-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ═══ AUTH SCREEN ═══ -->
+<div class="auth-container" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-icon">🔧</div>
+    <div class="auth-badge">MANAGER PORTAL</div>
+    <h1 class="auth-title">FieldSurvey Pro</h1>
+    <p class="auth-sub">Sign in with your manager credentials</p>
+    <input type="email" id="authEmail" placeholder="manager@nec.com" autocomplete="email">
+    <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+    <button class="auth-btn" id="authBtn" onclick="handleLogin()">Sign In</button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div class="app" id="mainApp">
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-icon">🔧</span>
+      <span class="topbar-title">FieldSurvey Pro</span>
+      <span class="topbar-badge">MANAGER</span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-user">Signed in as <strong id="userName">Manager</strong></span>
+      <button class="logout-btn" onclick="handleLogout()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- Refresh bar -->
+  <div class="refresh-bar" id="refreshBar">Refreshing data...</div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" data-tab="surveys" onclick="switchTab('surveys')">Surveys <span class="tab-count" id="surveyCount">0</span></button>
+    <button class="tab" data-tab="tasks" onclick="switchTab('tasks')">Tasks <span class="tab-count" id="taskCount">0</span></button>
+    <button class="tab" data-tab="issues" onclick="switchTab('issues')">Issues <span class="tab-count" id="issueCount">0</span></button>
+    <button class="tab" data-tab="engineers" onclick="switchTab('engineers')">Engineers</button>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ═══ OVERVIEW TAB ═══ -->
+    <div class="section active" id="sec-overview">
+      <div class="stats-row" id="overviewStats"></div>
+      <div class="stats-row">
+        <div class="table-card" style="flex:1">
+          <div class="table-header">
+            <span class="table-title">Recent Surveys</span>
+            <button class="filter-btn active" onclick="switchTab('surveys')">View All →</button>
+          </div>
+          <table>
+            <thead><tr><th>Engineer</th><th>Site</th><th>Condition</th><th>GPS</th><th>Time</th></tr></thead>
+            <tbody id="recentSurveys"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="stats-row" style="margin-top: 16px">
+        <div class="table-card" style="flex:1">
+          <div class="table-header">
+            <span class="table-title">Flagged for Review</span>
+          </div>
+          <table>
+            <thead><tr><th>Engineer</th><th>Site</th><th>Flag Reason</th><th>Time</th><th>Action</th></tr></thead>
+            <tbody id="flaggedSurveys"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SURVEYS TAB ═══ -->
+    <div class="section" id="sec-surveys">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">All Survey Submissions</span>
+          <div class="table-filters">
+            <button class="filter-btn active" data-survey-filter="all" onclick="filterSurveys('all')">All</button>
+            <button class="filter-btn" data-survey-filter="pending" onclick="filterSurveys('pending')">Pending Review</button>
+            <button class="filter-btn" data-survey-filter="approved" onclick="filterSurveys('approved')">Approved</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>Engineer</th><th>Site</th><th>Condition</th><th>GPS Status</th><th>Submitted</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="surveysTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ TASKS TAB ═══ -->
+    <div class="section" id="sec-tasks">
+      <div class="stats-row" id="taskStats"></div>
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">Work Orders</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="action-btn approve" onclick="showCreateTaskModal()" style="padding:8px 16px;font-size:13px">+ Create Task</button>
+            <div class="table-filters">
+              <button class="filter-btn active" data-task-filter="all" onclick="filterTasks('all')">All</button>
+              <button class="filter-btn" data-task-filter="active" onclick="filterTasks('active')">Active</button>
+              <button class="filter-btn" data-task-filter="completed" onclick="filterTasks('completed')">Completed</button>
+            </div>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Work Order</th><th>Task</th><th>Site</th><th>Priority</th><th>State</th><th>Assigned To</th><th>Survey Template</th><th>Actions</th></tr></thead>
+          <tbody id="tasksTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ ISSUES TAB ═══ -->
+    <div class="section" id="sec-issues">
+      <div class="stats-row" id="issueStats"></div>
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">Issues Tracker</span>
+          <div class="table-filters">
+            <button class="filter-btn active" data-issue-filter="all" onclick="filterIssues('all')">All</button>
+            <button class="filter-btn" data-issue-filter="open" onclick="filterIssues('open')">Open</button>
+            <button class="filter-btn" data-issue-filter="critical" onclick="filterIssues('critical')">Critical</button>
+            <button class="filter-btn" data-issue-filter="resolved" onclick="filterIssues('resolved')">Resolved</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Issue ID</th><th>Description</th><th>Site</th><th>Severity</th><th>State</th><th>Reported</th><th>Actions</th></tr></thead>
+          <tbody id="issuesTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ ENGINEERS TAB ═══ -->
+    <div class="section" id="sec-engineers">
+      <div class="table-card">
+        <div class="table-header">
+          <span class="table-title">Engineer Activity</span>
+        </div>
+        <table>
+          <thead><tr><th>Engineer</th><th>Email</th><th>Surveys Submitted</th><th>Issues Reported</th><th>Last Active</th></tr></thead>
+          <tbody id="engineersTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ DETAIL MODAL ═══ -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Details</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ═══ CREATE TASK MODAL ═══ -->
+<div class="modal-overlay" id="createTaskOverlay" onclick="if(event.target===this)closeCreateTask()">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header">
+      <span class="modal-title">📋 Create New Task</span>
+      <button class="modal-close" onclick="closeCreateTask()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Task Name *</label>
+          <input class="form-input" id="ctTaskName" placeholder="e.g. Quarterly Equipment Inspection">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority *</label>
+          <select class="form-select" id="ctPriority">
+            <option value="HIGH">🔴 High</option>
+            <option value="MEDIUM" selected>🟠 Medium</option>
+            <option value="LOW">🟢 Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description *</label>
+        <textarea class="form-textarea" id="ctDescription" placeholder="Describe the work to be done..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Site Name *</label>
+          <select class="form-select" id="ctSite">
+            <option value="">Select site...</option>
+            <option value="SITE-KNP-001|NEC Office Site - Kanpur|26.4499|80.3319">NEC Office Site - Kanpur</option>
+            <option value="SITE-DEL-042|Delhi Data Center - Phase 2|28.6139|77.209">Delhi Data Center - Phase 2</option>
+            <option value="SITE-MUM-017|Mumbai BKC Tower Site|19.0596|72.8656">Mumbai BKC Tower Site</option>
+            <option value="SITE-BLR-003|Bangalore Whitefield Hub|12.9698|77.75">Bangalore Whitefield Hub</option>
+            <option value="SITE-CHN-021|Chennai Tidel Park Tower|12.9904|80.2447">Chennai Tidel Park Tower</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Assign to Engineer *</label>
+          <select class="form-select" id="ctEngineer">
+            <option value="">Select engineer...</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Estimated Duration</label>
+          <select class="form-select" id="ctDuration">
+            <option value="20 min">20 minutes</option>
+            <option value="30 min">30 minutes</option>
+            <option value="45 min" selected>45 minutes</option>
+            <option value="60 min">1 hour</option>
+            <option value="90 min">1.5 hours</option>
+            <option value="120 min">2 hours</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">SLA Deadline *</label>
+          <input class="form-input" type="datetime-local" id="ctDeadline">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Customer Name</label>
+          <input class="form-input" id="ctCustomer" placeholder="e.g. NEC Internal">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contact Number</label>
+          <input class="form-input" id="ctContact" placeholder="+91-XXX-XXX-XXXX">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Survey Template *</label>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Select which survey form the engineer must fill for this task</p>
+        <div class="template-picker" id="templatePicker">
+          <div style="text-align:center;padding:20px;color:var(--text-muted)">Loading templates...</div>
+        </div>
+      </div>
+
+      <button class="form-submit" id="ctSubmitBtn" onclick="createNewTask()">Create & Assign Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FIREBASE SDK ═══ -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js';
+import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js';
+
+// ─── FIREBASE CONFIG (same as mobile app) ───
+const firebaseConfig = {
+  apiKey: "AIzaSyDVei6q08ntZF7g5E7Zm9KeDh47kqabMVo",
+  authDomain: "fieldsurvey-pro.firebaseapp.com",
+  projectId: "fieldsurvey-pro",
+  storageBucket: "fieldsurvey-pro.firebasestorage.app",
+  messagingSenderId: "569402352515",
+  appId: "1:569402352515:web:8b74fcc74d298ebe4e4cb6"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ─── STATE ───
+let allSurveys = [];
+let allTasks = [];
+let allIssues = [];
+let allTemplates = [];
+let allEngineers = [];
+let selectedTemplateId = null;
+let currentSurveyFilter = 'all';
+let currentTaskFilter = 'all';
+let currentIssueFilter = 'all';
+let unsubscribers = [];
+
+// Expose functions to global scope for onclick handlers
+window.handleLogin = async function() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errorEl = document.getElementById('authError');
+  const btn = document.getElementById('authBtn');
+
+  if (!email || !password) { errorEl.textContent = 'Please enter email and password.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  errorEl.textContent = '';
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (e) {
+    const msgs = {
+      'auth/invalid-credential': 'Invalid email or password',
+      'auth/user-not-found': 'No account found',
+      'auth/wrong-password': 'Incorrect password',
+      'auth/network-request-failed': 'Network error',
+    };
+    errorEl.textContent = msgs[e.code] || 'Login failed. Try again.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Sign In';
+};
+
+window.handleLogout = async function() {
+  unsubscribers.forEach(fn => fn());
+  unsubscribers = [];
+  await signOut(auth);
+};
+
+window.switchTab = function(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === `sec-${tab}`));
+};
+
+window.closeModal = function() {
+  document.getElementById('modalOverlay').classList.remove('active');
+};
+
+window.filterSurveys = function(f) {
+  currentSurveyFilter = f;
+  document.querySelectorAll('[data-survey-filter]').forEach(b => b.classList.toggle('active', b.dataset.surveyFilter === f));
+  renderSurveys();
+};
+
+window.filterTasks = function(f) {
+  currentTaskFilter = f;
+  document.querySelectorAll('[data-task-filter]').forEach(b => b.classList.toggle('active', b.dataset.taskFilter === f));
+  renderTasks();
+};
+
+window.filterIssues = function(f) {
+  currentIssueFilter = f;
+  document.querySelectorAll('[data-issue-filter]').forEach(b => b.classList.toggle('active', b.dataset.issueFilter === f));
+  renderIssues();
+};
+
+window.viewSurveyDetail = function(idx) {
+  const s = allSurveys[idx];
+  if (!s) return;
+  document.getElementById('modalTitle').textContent = `Survey: ${s.id?.slice(0,8) || 'N/A'}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="detail-row"><div class="detail-label">Engineer</div><div class="detail-value">${s.userName || s.userEmail || 'Unknown'}</div></div>
+    <div class="detail-row"><div class="detail-label">Employee ID</div><div class="detail-value">${s.employeeId || 'N/A'}</div></div>
+    <div class="detail-row"><div class="detail-label">Site</div><div class="detail-value">${s.siteLocation || s.siteName || 'N/A'}</div></div>
+    <div class="detail-row"><div class="detail-label">Condition</div><div class="detail-value">${conditionBadge(s.siteCondition)}</div></div>
+    <div class="detail-row"><div class="detail-label">Condition Details</div><div class="detail-value">${s.conditionDetails || 'None'}</div></div>
+    <div class="detail-row"><div class="detail-label">Issues Found</div><div class="detail-value">${s.issuesFound || 'No'}</div></div>
+    ${s.issuesFound === 'Yes' ? `
+    <div class="detail-row"><div class="detail-label">Issue Description</div><div class="detail-value">${s.issueDescription || 'N/A'}</div></div>
+    <div class="detail-row"><div class="detail-label">Issue Severity</div><div class="detail-value">${severityBadge(s.issueSeverity)}</div></div>
+    ` : ''}
+    <div class="detail-row"><div class="detail-label">GPS Location</div><div class="detail-value">${s.gpsLocation ? `${s.gpsLocation.latitude.toFixed(4)}, ${s.gpsLocation.longitude.toFixed(4)}` : 'Not captured'}</div></div>
+    <div class="detail-row"><div class="detail-label">Distance</div><div class="detail-value">${s.distanceFromSite != null ? formatDist(s.distanceFromSite) : 'N/A'}</div></div>
+    <div class="detail-row"><div class="detail-label">GPS Flag</div><div class="detail-value">${flagBadge(s.submissionFlag)}</div></div>
+    ${s.offSiteReason ? `<div class="detail-row"><div class="detail-label">Off-Site Reason</div><div class="detail-value">${s.offSiteReason}</div></div>` : ''}
+    <div class="detail-row"><div class="detail-label">Task</div><div class="detail-value">${s.taskId || 'Standalone'} — ${s.taskName || ''}</div></div>
+    <div class="detail-row"><div class="detail-label">Additional Notes</div><div class="detail-value">${s.additionalNotes || 'None'}</div></div>
+    <div class="detail-row"><div class="detail-label">Photos</div><div class="detail-value">${s.photosUploadPending ? '<span class="badge badge-amber">📱 On device (upload pending)</span>' : s.sitePhotoURL ? '<span class="badge badge-green">☁️ Uploaded</span>' : '<span class="badge badge-gray">None</span>'}</div></div>
+    <div class="detail-row"><div class="detail-label">Signatures</div><div class="detail-value">${s.engineerSignatureURL ? '✅ Engineer' : '📱 On device'} ${s.clientSignatureURL ? ' ✅ Client' : ''}</div></div>
+    <div class="detail-row"><div class="detail-label">Submitted</div><div class="detail-value">${formatTime(s.submittedAtLocal || s.submittedAt)}</div></div>
+    <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${statusBadge(s.status)}</div></div>
+    <div style="margin-top:20px; display:flex; gap:8px">
+      <button class="action-btn approve" onclick="updateSurveyStatus(${idx}, 'APPROVED')">✓ Approve</button>
+      <button class="action-btn flag" onclick="updateSurveyStatus(${idx}, 'FLAGGED')">⚠ Flag</button>
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('active');
+};
+
+window.updateSurveyStatus = async function(idx, newStatus) {
+  const s = allSurveys[idx];
+  if (!s || !s.id) return;
+  try {
+    await updateDoc(doc(db, 'surveys', s.id), { status: newStatus });
+    allSurveys[idx].status = newStatus;
+    renderOverview();
+    renderSurveys();
+    closeModal();
+  } catch (e) {
+    alert('Update failed: ' + e.message);
+  }
+};
+
+window.viewTaskDetail = function(idx) {
+  const t = allTasks[idx];
+  if (!t) return;
+  document.getElementById('modalTitle').textContent = `Task: ${t.id}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="detail-row"><div class="detail-label">Work Order</div><div class="detail-value">${t.id}</div></div>
+    <div class="detail-row"><div class="detail-label">Task</div><div class="detail-value">${t.taskName}</div></div>
+    <div class="detail-row"><div class="detail-label">Description</div><div class="detail-value">${t.description}</div></div>
+    <div class="detail-row"><div class="detail-label">Site</div><div class="detail-value">${t.siteName} (${t.siteId})</div></div>
+    <div class="detail-row"><div class="detail-label">Priority</div><div class="detail-value">${priorityBadge(t.priority)}</div></div>
+    <div class="detail-row"><div class="detail-label">State</div><div class="detail-value">${stateBadge(t.state)}</div></div>
+    <div class="detail-row"><div class="detail-label">Assigned To</div><div class="detail-value">${t.assignedTo}</div></div>
+    <div class="detail-row"><div class="detail-label">Customer</div><div class="detail-value">${t.customerName || 'N/A'}</div></div>
+    <div class="detail-row"><div class="detail-label">SLA Deadline</div><div class="detail-value">${t.slaDeadline}</div></div>
+    <div class="detail-row"><div class="detail-label">Duration</div><div class="detail-value">${t.estimatedDuration}</div></div>
+    <div style="margin-top:16px"><strong style="font-size:12px;color:var(--text-muted)">HISTORY</strong></div>
+    ${(t.history || []).map(h => `<div style="padding:6px 0;border-bottom:1px solid #f0f2f5;font-size:13px">${stateBadge(h.state)} <span style="color:var(--text-secondary)">${h.by} — ${h.timestamp}</span></div>`).join('')}
+  `;
+  document.getElementById('modalOverlay').classList.add('active');
+};
+
+window.viewIssueDetail = function(idx) {
+  const i = allIssues[idx];
+  if (!i) return;
+  document.getElementById('modalTitle').textContent = `Issue: ${i.id}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="detail-row"><div class="detail-label">Issue ID</div><div class="detail-value">${i.id}</div></div>
+    <div class="detail-row"><div class="detail-label">Description</div><div class="detail-value">${i.description}</div></div>
+    <div class="detail-row"><div class="detail-label">Site</div><div class="detail-value">${i.siteName} (${i.parentSiteId})</div></div>
+    <div class="detail-row"><div class="detail-label">Severity</div><div class="detail-value">${severityBadge(i.severity)}</div></div>
+    <div class="detail-row"><div class="detail-label">State</div><div class="detail-value">${issueStateBadge(i.state)}</div></div>
+    <div class="detail-row"><div class="detail-label">Reported By</div><div class="detail-value">${i.reportedBy}</div></div>
+    <div class="detail-row"><div class="detail-label">Assigned To</div><div class="detail-value">${i.assignedTo || 'Unassigned'}</div></div>
+    <div class="detail-row"><div class="detail-label">Parent Task</div><div class="detail-value">${i.parentTaskId || 'N/A'}</div></div>
+    <div style="margin-top:16px"><strong style="font-size:12px;color:var(--text-muted)">HISTORY</strong></div>
+    ${(i.history || []).map(h => `<div style="padding:6px 0;border-bottom:1px solid #f0f2f5;font-size:13px">${issueStateBadge(h.state)} <span style="color:var(--text-secondary)">${h.by || ''} — ${formatTime(h.timestamp)}</span> ${h.note ? `<div style="color:var(--text-secondary);font-size:12px;margin-top:2px">${h.note}</div>` : ''}</div>`).join('')}
+  `;
+  document.getElementById('modalOverlay').classList.add('active');
+};
+
+// ─── BADGE HELPERS ───
+function conditionBadge(c) {
+  const map = { Good: 'badge-green', Fair: 'badge-amber', Poor: 'badge-red', Critical: 'badge-red' };
+  return `<span class="badge ${map[c] || 'badge-gray'}">${c || 'N/A'}</span>`;
+}
+
+// ─── TEMPLATE & ENGINEER MANAGEMENT ───
+async function loadTemplates() {
+  try {
+    const q = query(collection(db, 'survey_templates'), orderBy('name'));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      // Seed default templates
+      const defaults = getDefaultTemplates();
+      for (const tpl of defaults) {
+        await addDoc(collection(db, 'survey_templates'), { ...tpl, createdAt: serverTimestamp() });
+      }
+      allTemplates = defaults;
+    } else {
+      allTemplates = snapshot.docs.map(d => ({ ...d.data(), firestoreId: d.id }));
+    }
+  } catch (e) {
+    console.error('Load templates failed:', e);
+    allTemplates = getDefaultTemplates();
+  }
+}
+
+function getDefaultTemplates() {
+  return [
+    { id: 'TPL-GENERAL-001', name: 'General Site Survey', description: 'Standard general-purpose inspection', icon: '📋', category: 'General' },
+    { id: 'TPL-HVAC-001', name: 'HVAC Inspection', description: 'Heating, ventilation & AC check', icon: '❄️', category: 'Electrical' },
+    { id: 'TPL-NET-001', name: 'Network Equipment Check', description: 'Switches, routers & cabling', icon: '🌐', category: 'IT Infrastructure' },
+    { id: 'TPL-FIRE-001', name: 'Fire Safety Audit', description: 'Fire alarm & safety systems', icon: '🔥', category: 'Safety' },
+    { id: 'TPL-GEN-001', name: 'Generator Maintenance', description: 'Fuel, oil & performance check', icon: '⚡', category: 'Power' },
+  ];
+}
+
+async function loadEngineers() {
+  // Load from Firestore engineers collection, or derive from survey/task data
+  try {
+    const snapshot = await getDocs(collection(db, 'engineers'));
+    if (!snapshot.empty) {
+      allEngineers = snapshot.docs.map(d => ({ ...d.data(), firestoreId: d.id }));
+    } else {
+      // Seed default test engineers
+      const defaults = [
+        { name: 'Rishi Gupta', email: 'rishi@nec.com', empId: 'EMP-12345', role: 'Field Engineer' },
+        { name: 'Amit Kumar', email: 'engineer1@nec.com', empId: 'EMP-12346', role: 'Field Engineer' },
+        { name: 'Priya Sharma', email: 'engineer2@nec.com', empId: 'EMP-12347', role: 'Field Engineer' },
+        { name: 'Rajesh Patel', email: 'engineer3@nec.com', empId: 'EMP-12348', role: 'Field Engineer' },
+      ];
+      for (const eng of defaults) {
+        await addDoc(collection(db, 'engineers'), { ...eng, createdAt: serverTimestamp() });
+      }
+      allEngineers = defaults;
+    }
+  } catch (e) {
+    console.error('Load engineers failed:', e);
+    allEngineers = [
+      { name: 'Rishi Gupta', email: 'rishi@nec.com', empId: 'EMP-12345' },
+      { name: 'Amit Kumar', email: 'engineer1@nec.com', empId: 'EMP-12346' },
+      { name: 'Priya Sharma', email: 'engineer2@nec.com', empId: 'EMP-12347' },
+      { name: 'Rajesh Patel', email: 'engineer3@nec.com', empId: 'EMP-12348' },
+    ];
+  }
+}
+
+window.showCreateTaskModal = function() {
+  selectedTemplateId = null;
+  // Populate engineer dropdown
+  const engSelect = document.getElementById('ctEngineer');
+  engSelect.innerHTML = '<option value="">Select engineer...</option>' +
+    allEngineers.map(e => `<option value="${e.name}">${e.name} (${e.email})</option>`).join('');
+
+  // Populate template picker
+  document.getElementById('templatePicker').innerHTML = allTemplates.map(t =>
+    `<div class="template-card" id="tpl-${t.id}" onclick="selectTemplate('${t.id}')">
+      <div class="tpl-icon">${t.icon}</div>
+      <div class="tpl-name">${t.name}</div>
+      <div class="tpl-desc">${t.description}</div>
+    </div>`
+  ).join('');
+
+  // Set default deadline to tomorrow 6pm
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(18, 0, 0, 0);
+  document.getElementById('ctDeadline').value = tomorrow.toISOString().slice(0, 16);
+
+  // Clear form
+  document.getElementById('ctTaskName').value = '';
+  document.getElementById('ctDescription').value = '';
+  document.getElementById('ctSite').value = '';
+  document.getElementById('ctCustomer').value = '';
+  document.getElementById('ctContact').value = '';
+
+  document.getElementById('createTaskOverlay').classList.add('active');
+};
+
+window.closeCreateTask = function() {
+  document.getElementById('createTaskOverlay').classList.remove('active');
+};
+
+window.selectTemplate = function(tplId) {
+  selectedTemplateId = tplId;
+  document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('tpl-' + tplId)?.classList.add('selected');
+};
+
+window.createNewTask = async function() {
+  const taskName = document.getElementById('ctTaskName').value.trim();
+  const description = document.getElementById('ctDescription').value.trim();
+  const priority = document.getElementById('ctPriority').value;
+  const siteVal = document.getElementById('ctSite').value;
+  const engineer = document.getElementById('ctEngineer').value;
+  const deadline = document.getElementById('ctDeadline').value;
+  const duration = document.getElementById('ctDuration').value;
+  const customer = document.getElementById('ctCustomer').value.trim();
+  const contact = document.getElementById('ctContact').value.trim();
+
+  // Validation
+  if (!taskName || !description || !siteVal || !engineer || !deadline || !selectedTemplateId) {
+    alert('Please fill all required fields and select a survey template.');
+    return;
+  }
+
+  const [siteId, siteName, lat, lng] = siteVal.split('|');
+  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const managerName = auth.currentUser?.displayName || auth.currentUser?.email || 'Manager';
+
+  const year = new Date().getFullYear();
+  const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  const workOrderId = `WO-${year}-${rand}`;
+
+  const newTask = {
+    id: workOrderId,
+    siteId,
+    siteName,
+    siteLocation: { latitude: parseFloat(lat), longitude: parseFloat(lng) },
+    taskName,
+    description,
+    priority,
+    state: 'ASSIGNED',
+    assignedTo: engineer,
+    assignedAt: now,
+    slaDeadline: deadline.replace('T', ' '),
+    estimatedDuration: duration,
+    customerName: customer || 'N/A',
+    contactNumber: contact || 'N/A',
+    templateId: selectedTemplateId,  // ← Links task to survey template
+    templateName: allTemplates.find(t => t.id === selectedTemplateId)?.name || 'General',
+    history: [
+      { state: 'ASSIGNED', timestamp: now, by: managerName },
+    ],
+    createdBy: managerName,
+    syncedAt: serverTimestamp(),
+  };
+
+  const btn = document.getElementById('ctSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+
+  try {
+    await addDoc(collection(db, 'tasks'), newTask);
+    closeCreateTask();
+    alert(`Task ${workOrderId} created and assigned to ${engineer}!`);
+  } catch (e) {
+    alert('Failed to create task: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Create & Assign Task';
+};
+
+function severityBadge(s) {
+  const map = { CRITICAL: 'badge-red', HIGH: 'badge-red', MEDIUM: 'badge-amber', LOW: 'badge-blue' };
+  const icons = { CRITICAL: '🚨', HIGH: '🔴', MEDIUM: '🟠', LOW: '🔵' };
+  return `<span class="badge ${map[s] || 'badge-gray'}">${icons[s] || ''} ${s || 'N/A'}</span>`;
+}
+
+function flagBadge(flag) {
+  if (!flag) return '<span class="badge badge-gray">N/A</span>';
+  const map = { verified: 'badge-green', soft_warning: 'badge-amber', off_site: 'badge-red', no_gps: 'badge-red' };
+  return `<span class="badge ${map[flag.flag] || 'badge-gray'}">${flag.label || flag.flag}</span>`;
+}
+
+function statusBadge(status) {
+  const map = { SUBMITTED: 'badge-blue', PENDING_REVIEW: 'badge-amber', APPROVED: 'badge-green', FLAGGED: 'badge-red' };
+  return `<span class="badge ${map[status] || 'badge-gray'}">${status || 'SUBMITTED'}</span>`;
+}
+
+function stateBadge(state) {
+  const map = { ASSIGNED: 'badge-blue', ACCEPTED: 'badge-purple', IN_PROGRESS: 'badge-amber', BLOCKED: 'badge-red', COMPLETED: 'badge-green', VERIFIED: 'badge-green' };
+  const icons = { ASSIGNED: '📋', ACCEPTED: '✋', IN_PROGRESS: '🔧', BLOCKED: '🚫', COMPLETED: '✓', VERIFIED: '✅' };
+  return `<span class="badge ${map[state] || 'badge-gray'}">${icons[state] || ''} ${state || 'N/A'}</span>`;
+}
+
+function issueStateBadge(state) {
+  const map = { OPEN: 'badge-red', ASSIGNED: 'badge-blue', IN_PROGRESS: 'badge-amber', RESOLVED: 'badge-green', CLOSED: 'badge-gray' };
+  return `<span class="badge ${map[state] || 'badge-gray'}">${state || 'N/A'}</span>`;
+}
+
+function priorityBadge(p) {
+  const map = { HIGH: 'badge-red', MEDIUM: 'badge-amber', LOW: 'badge-green' };
+  const icons = { HIGH: '🔴', MEDIUM: '🟠', LOW: '🟢' };
+  return `<span class="badge ${map[p] || 'badge-gray'}">${icons[p] || ''} ${p || 'N/A'}</span>`;
+}
+
+function formatTime(t) {
+  if (!t) return 'N/A';
+  try {
+    if (t.seconds) return new Date(t.seconds * 1000).toLocaleString();
+    return new Date(t).toLocaleString();
+  } catch { return t; }
+}
+
+function formatDist(m) {
+  if (m == null) return 'N/A';
+  return m < 1000 ? `${Math.round(m)} m` : `${(m/1000).toFixed(1)} km`;
+}
+
+// ─── RENDER FUNCTIONS ───
+function renderOverview() {
+  const pendingReview = allSurveys.filter(s => s.status === 'PENDING_REVIEW').length;
+  const totalSurveys = allSurveys.length;
+  const activeTasks = allTasks.filter(t => ['ASSIGNED','ACCEPTED','IN_PROGRESS','BLOCKED'].includes(t.state)).length;
+  const openIssues = allIssues.filter(i => !['CLOSED','RESOLVED'].includes(i.state)).length;
+  const criticalIssues = allIssues.filter(i => i.severity === 'CRITICAL' && !['CLOSED','RESOLVED'].includes(i.state)).length;
+
+  document.getElementById('overviewStats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total Surveys</div><div class="stat-value">${totalSurveys}</div><div class="stat-sub">All submissions</div></div>
+    <div class="stat-card amber"><div class="stat-label">Pending Review</div><div class="stat-value" style="color:var(--amber)">${pendingReview}</div><div class="stat-sub">Needs attention</div></div>
+    <div class="stat-card purple"><div class="stat-label">Active Tasks</div><div class="stat-value" style="color:var(--purple)">${activeTasks}</div><div class="stat-sub">In progress</div></div>
+    <div class="stat-card red"><div class="stat-label">Open Issues</div><div class="stat-value" style="color:var(--red)">${openIssues}</div><div class="stat-sub">${criticalIssues} critical</div></div>
+  `;
+
+  // Recent surveys (last 5)
+  const recent = allSurveys.slice(0, 5);
+  document.getElementById('recentSurveys').innerHTML = recent.length === 0
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px">No surveys yet</td></tr>'
+    : recent.map(s => `<tr>
+        <td>${s.userName || s.userEmail || 'Unknown'}</td>
+        <td>${s.siteLocation || s.siteName || 'N/A'}</td>
+        <td>${conditionBadge(s.siteCondition)}</td>
+        <td>${flagBadge(s.submissionFlag)}</td>
+        <td>${formatTime(s.submittedAtLocal)}</td>
+      </tr>`).join('');
+
+  // Flagged surveys
+  const flagged = allSurveys.filter(s => s.status === 'PENDING_REVIEW' || s.submissionFlag?.reviewRequired);
+  document.getElementById('flaggedSurveys').innerHTML = flagged.length === 0
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px">No flagged submissions</td></tr>'
+    : flagged.map((s, i) => {
+        const idx = allSurveys.indexOf(s);
+        return `<tr>
+          <td>${s.userName || s.userEmail || 'Unknown'}</td>
+          <td>${s.siteLocation || s.siteName || 'N/A'}</td>
+          <td>${flagBadge(s.submissionFlag)}</td>
+          <td>${formatTime(s.submittedAtLocal)}</td>
+          <td>
+            <button class="action-btn approve" onclick="updateSurveyStatus(${idx},'APPROVED')">Approve</button>
+            <button class="action-btn view" onclick="viewSurveyDetail(${idx})" style="margin-left:4px">View</button>
+          </td>
+        </tr>`;
+      }).join('');
+}
+
+function renderSurveys() {
+  let filtered = allSurveys;
+  if (currentSurveyFilter === 'pending') filtered = allSurveys.filter(s => s.status === 'PENDING_REVIEW');
+  if (currentSurveyFilter === 'approved') filtered = allSurveys.filter(s => s.status === 'APPROVED');
+
+  document.getElementById('surveyCount').textContent = allSurveys.length;
+  document.getElementById('surveysTable').innerHTML = filtered.length === 0
+    ? '<tr><td colspan="8" class="empty-state"><div class="empty-icon">📭</div>No surveys found</td></tr>'
+    : filtered.map((s, fi) => {
+        const idx = allSurveys.indexOf(s);
+        return `<tr>
+          <td style="font-family:monospace;font-size:12px">${s.id?.slice(0,8) || 'N/A'}</td>
+          <td>${s.userName || s.userEmail || 'Unknown'}</td>
+          <td>${s.siteLocation || s.siteName || 'N/A'}</td>
+          <td>${conditionBadge(s.siteCondition)}</td>
+          <td>${flagBadge(s.submissionFlag)}</td>
+          <td>${formatTime(s.submittedAtLocal)}</td>
+          <td>${statusBadge(s.status)}</td>
+          <td>
+            <button class="action-btn view" onclick="viewSurveyDetail(${idx})">View</button>
+          </td>
+        </tr>`;
+      }).join('');
+}
+
+function renderTasks() {
+  let filtered = allTasks;
+  if (currentTaskFilter === 'active') filtered = allTasks.filter(t => ['ASSIGNED','ACCEPTED','IN_PROGRESS','BLOCKED'].includes(t.state));
+  if (currentTaskFilter === 'completed') filtered = allTasks.filter(t => ['COMPLETED','VERIFIED'].includes(t.state));
+
+  const active = allTasks.filter(t => ['ASSIGNED','ACCEPTED','IN_PROGRESS','BLOCKED'].includes(t.state)).length;
+  const completed = allTasks.filter(t => ['COMPLETED','VERIFIED'].includes(t.state)).length;
+  const high = allTasks.filter(t => t.priority === 'HIGH' && !['VERIFIED'].includes(t.state)).length;
+
+  document.getElementById('taskCount').textContent = allTasks.length;
+  document.getElementById('taskStats').innerHTML = `
+    <div class="stat-card purple"><div class="stat-label">Active</div><div class="stat-value" style="color:var(--purple)">${active}</div></div>
+    <div class="stat-card green"><div class="stat-label">Completed</div><div class="stat-value" style="color:var(--green)">${completed}</div></div>
+    <div class="stat-card red"><div class="stat-label">High Priority</div><div class="stat-value" style="color:var(--red)">${high}</div></div>
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${allTasks.length}</div></div>
+  `;
+
+  document.getElementById('tasksTable').innerHTML = filtered.length === 0
+    ? '<tr><td colspan="8" class="empty-state"><div class="empty-icon">📭</div>No tasks found</td></tr>'
+    : filtered.map((t, fi) => {
+        const idx = allTasks.indexOf(t);
+        const tplName = t.templateName || 'General';
+        const tplIcon = allTemplates.find(tp => tp.id === t.templateId)?.icon || '📋';
+        return `<tr>
+          <td style="font-family:monospace;font-weight:600">${t.id}</td>
+          <td>${t.taskName}</td>
+          <td>${t.siteName}</td>
+          <td>${priorityBadge(t.priority)}</td>
+          <td>${stateBadge(t.state)}</td>
+          <td>${t.assignedTo}</td>
+          <td><span class="badge badge-blue">${tplIcon} ${tplName}</span></td>
+          <td><button class="action-btn view" onclick="viewTaskDetail(${idx})">View</button></td>
+        </tr>`;
+      }).join('');
+}
+
+function renderIssues() {
+  let filtered = allIssues;
+  if (currentIssueFilter === 'open') filtered = allIssues.filter(i => ['OPEN','ASSIGNED','IN_PROGRESS'].includes(i.state));
+  if (currentIssueFilter === 'critical') filtered = allIssues.filter(i => i.severity === 'CRITICAL');
+  if (currentIssueFilter === 'resolved') filtered = allIssues.filter(i => ['RESOLVED','CLOSED'].includes(i.state));
+
+  const open = allIssues.filter(i => ['OPEN','ASSIGNED','IN_PROGRESS'].includes(i.state)).length;
+  const critical = allIssues.filter(i => i.severity === 'CRITICAL' && !['CLOSED','RESOLVED'].includes(i.state)).length;
+  const resolved = allIssues.filter(i => ['RESOLVED','CLOSED'].includes(i.state)).length;
+
+  document.getElementById('issueCount').textContent = allIssues.length;
+  document.getElementById('issueStats').innerHTML = `
+    <div class="stat-card red"><div class="stat-label">Open</div><div class="stat-value" style="color:var(--red)">${open}</div></div>
+    <div class="stat-card amber"><div class="stat-label">Critical Active</div><div class="stat-value" style="color:var(--amber)">${critical}</div></div>
+    <div class="stat-card green"><div class="stat-label">Resolved</div><div class="stat-value" style="color:var(--green)">${resolved}</div></div>
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${allIssues.length}</div></div>
+  `;
+
+  document.getElementById('issuesTable').innerHTML = filtered.length === 0
+    ? '<tr><td colspan="7" class="empty-state"><div class="empty-icon">📭</div>No issues found</td></tr>'
+    : filtered.map((i, fi) => {
+        const idx = allIssues.indexOf(i);
+        return `<tr>
+          <td style="font-family:monospace;font-weight:600">${i.id}</td>
+          <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.description}</td>
+          <td>${i.siteName}</td>
+          <td>${severityBadge(i.severity)}</td>
+          <td>${issueStateBadge(i.state)}</td>
+          <td>${formatTime(i.reportedAt)}</td>
+          <td><button class="action-btn view" onclick="viewIssueDetail(${idx})">View</button></td>
+        </tr>`;
+      }).join('');
+}
+
+function renderEngineers() {
+  // Aggregate engineer activity from surveys and issues
+  const engineers = {};
+
+  allSurveys.forEach(s => {
+    const key = s.userEmail || s.userName || 'unknown';
+    if (!engineers[key]) engineers[key] = { name: s.userName || 'Unknown', email: s.userEmail || '', surveys: 0, issues: 0, lastActive: null };
+    engineers[key].surveys++;
+    const t = s.submittedAtLocal || s.submittedAt;
+    if (t) {
+      const d = t.seconds ? new Date(t.seconds * 1000) : new Date(t);
+      if (!engineers[key].lastActive || d > engineers[key].lastActive) engineers[key].lastActive = d;
+    }
+  });
+
+  allIssues.forEach(i => {
+    const key = i.userEmail || i.reportedBy || 'unknown';
+    if (!engineers[key]) engineers[key] = { name: i.reportedBy || 'Unknown', email: i.userEmail || '', surveys: 0, issues: 0, lastActive: null };
+    engineers[key].issues++;
+  });
+
+  const rows = Object.values(engineers);
+  document.getElementById('engineersTable').innerHTML = rows.length === 0
+    ? '<tr><td colspan="5" class="empty-state"><div class="empty-icon">👷</div>No engineer activity yet</td></tr>'
+    : rows.map(e => `<tr>
+        <td><strong>${e.name}</strong></td>
+        <td>${e.email}</td>
+        <td>${e.surveys}</td>
+        <td>${e.issues}</td>
+        <td>${e.lastActive ? e.lastActive.toLocaleString() : 'N/A'}</td>
+      </tr>`).join('');
+}
+
+// ─── REAL-TIME DATA LOADING ───
+function startListening() {
+  // Load templates and engineers first
+  loadTemplates();
+  loadEngineers();
+  // Surveys — real-time
+  const surveyUnsub = onSnapshot(
+    query(collection(db, 'surveys'), orderBy('submittedAtLocal', 'desc')),
+    (snapshot) => {
+      allSurveys = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderOverview();
+      renderSurveys();
+      renderEngineers();
+    },
+    (error) => {
+      console.error('Surveys listener error:', error);
+      // Fallback: one-time fetch
+      getDocs(collection(db, 'surveys')).then(snap => {
+        allSurveys = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderOverview(); renderSurveys(); renderEngineers();
+      });
+    }
+  );
+
+  // Tasks — real-time
+  const taskUnsub = onSnapshot(
+    query(collection(db, 'tasks'), orderBy('assignedAt', 'desc')),
+    (snapshot) => {
+      allTasks = snapshot.docs.map(d => ({ id: d.data().id || d.id, firestoreId: d.id, ...d.data() }));
+      renderTasks();
+      renderOverview();
+    },
+    (error) => {
+      console.error('Tasks listener error:', error);
+      getDocs(collection(db, 'tasks')).then(snap => {
+        allTasks = snap.docs.map(d => ({ id: d.data().id || d.id, firestoreId: d.id, ...d.data() }));
+        renderTasks(); renderOverview();
+      });
+    }
+  );
+
+  // Issues — real-time
+  const issueUnsub = onSnapshot(
+    query(collection(db, 'issues'), orderBy('reportedAt', 'desc')),
+    (snapshot) => {
+      allIssues = snapshot.docs.map(d => ({ id: d.data().id || d.id, firestoreId: d.id, ...d.data() }));
+      renderIssues();
+      renderOverview();
+      renderEngineers();
+    },
+    (error) => {
+      console.error('Issues listener error:', error);
+      getDocs(collection(db, 'issues')).then(snap => {
+        allIssues = snap.docs.map(d => ({ id: d.data().id || d.id, firestoreId: d.id, ...d.data() }));
+        renderIssues(); renderOverview(); renderEngineers();
+      });
+    }
+  );
+
+  unsubscribers = [surveyUnsub, taskUnsub, issueUnsub];
+}
+
+// ─── AUTH STATE ───
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.add('active');
+    document.getElementById('userName').textContent = user.displayName || user.email;
+    startListening();
+  } else {
+    document.getElementById('authScreen').classList.remove('hidden');
+    document.getElementById('mainApp').classList.remove('active');
+  }
+});
+</script>
+</body>
+</html>

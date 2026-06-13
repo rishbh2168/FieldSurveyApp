@@ -1,19 +1,20 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
-    RefreshControl,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { useAuth } from "../context/AuthContext";
 import {
-    ISSUE_SEVERITY,
-    ISSUE_STATE_CONFIG,
-    loadIssues,
+  ISSUE_SEVERITY,
+  ISSUE_STATE_CONFIG,
+  loadIssues,
 } from "../utils/issues";
 
 const FILTERS = [
@@ -23,11 +24,12 @@ const FILTERS = [
 ];
 
 export default function IssuesListScreen({ navigation }) {
+  const { user } = useAuth();
   const [issues, setIssues] = useState([]);
   const [filter, setFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
 
-  // Reload issues when screen comes into focus
+  // Reload only this engineer's issues when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       loadAllIssues();
@@ -35,7 +37,8 @@ export default function IssuesListScreen({ navigation }) {
   );
 
   const loadAllIssues = async () => {
-    const data = await loadIssues();
+    const engineerName = user?.displayName || "";
+    const data = await loadIssues(engineerName);
     setIssues(data);
   };
 

@@ -1,23 +1,26 @@
 import { useState } from "react";
 import {
-    Alert,
-    Linking,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Linking,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { useAuth } from "../context/AuthContext";
 import {
-    PRIORITIES,
-    STATE_CONFIG,
-    getNextStates,
-    getSLAStatus
+  PRIORITIES,
+  STATE_CONFIG,
+  getNextStates,
+  getSLAStatus,
+  updateTaskState,
 } from "../utils/tasks";
 
 export default function TaskDetailScreen({ navigation, route }) {
+  const { user } = useAuth();
   const initialTask = route.params?.task;
   const [task, setTask] = useState(initialTask);
 
@@ -34,17 +37,20 @@ export default function TaskDetailScreen({ navigation, route }) {
   const sla = getSLAStatus(task.slaDeadline);
   const nextStates = getNextStates(task.state);
 
-  // Update task state
-  const updateState = (newState) => {
+  // Update task state — persists to Firestore + local
+  const handleUpdateState = async (newState) => {
+    const userName = user?.displayName || user?.email || "Engineer";
+    const now = new Date().toISOString().slice(0, 16).replace("T", " ");
+
+    // Update local UI immediately
     const newHistory = [
       ...task.history,
-      {
-        state: newState,
-        timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
-        by: "Rishi Gupta",
-      },
+      { state: newState, timestamp: now, by: userName },
     ];
     setTask({ ...task, state: newState, history: newHistory });
+
+    // Persist to Firestore in background
+    await updateTaskState(task.id, newState, userName);
   };
 
   // Handle state action button click
@@ -58,7 +64,7 @@ export default function TaskDetailScreen({ navigation, route }) {
         {
           text: "Confirm",
           onPress: () => {
-            updateState(newState);
+            handleUpdateState(newState);
             // If accepted/started, allow starting survey
             if (newState === "IN_PROGRESS") {
               setTimeout(() => {

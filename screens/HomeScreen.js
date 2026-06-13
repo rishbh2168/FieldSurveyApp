@@ -9,48 +9,75 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from "../context/AuthContext";
 import { loadIssues } from "../utils/issues";
-import { MOCK_TASKS } from "../utils/tasks";
+import { loadTasks } from "../utils/tasks";
 
 export default function HomeScreen({ navigation }) {
+  const { user, logout } = useAuth();
   const [issuesCount, setIssuesCount] = useState({ active: 0, total: 0 });
+  const [taskStats, setTaskStats] = useState({
+    active: 0,
+    completed: 0,
+    highPriority: 0,
+  });
+
+  const userName =
+    user?.displayName || user?.email?.split("@")[0] || "Engineer";
 
   useFocusEffect(
     React.useCallback(() => {
       loadIssueStats();
+      loadTaskStats();
     }, []),
   );
 
   const loadIssueStats = async () => {
-    const issues = await loadIssues();
+    // Load only issues reported by this engineer
+    const engineerName = user?.displayName || "";
+    const issues = await loadIssues(engineerName);
     setIssuesCount({
       active: issues.filter((i) => !["CLOSED"].includes(i.state)).length,
       total: issues.length,
     });
   };
 
-  const activeTasks = MOCK_TASKS.filter((t) =>
-    ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(t.state),
-  ).length;
-  const completedToday = MOCK_TASKS.filter((t) =>
-    ["COMPLETED", "VERIFIED"].includes(t.state),
-  ).length;
-  const highPriority = MOCK_TASKS.filter(
-    (t) => t.priority === "HIGH" && !["VERIFIED"].includes(t.state),
-  ).length;
+  const loadTaskStats = async () => {
+    // Load only tasks assigned to this engineer
+    const engineerName = user?.displayName || "";
+    const tasks = await loadTasks(engineerName);
+    setTaskStats({
+      active: tasks.filter((t) =>
+        ["ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(t.state),
+      ).length,
+      completed: tasks.filter((t) =>
+        ["COMPLETED", "VERIFIED"].includes(t.state),
+      ).length,
+      highPriority: tasks.filter(
+        (t) => t.priority === "HIGH" && !["VERIFIED"].includes(t.state),
+      ).length,
+    });
+  };
+
+  const activeTasks = taskStats.active;
+  const completedToday = taskStats.completed;
+  const highPriority = taskStats.highPriority;
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a73e8" />
 
       <View style={styles.header}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
         <Text style={styles.headerIcon}>🔧</Text>
         <Text style={styles.headerTitle}>FieldSurvey Pro</Text>
         <Text style={styles.headerSubtitle}>Field Service Management</Text>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
-        <Text style={styles.welcomeText}>Welcome, Rishi 👷</Text>
+        <Text style={styles.welcomeText}>Welcome, {userName} 👷</Text>
         <Text style={styles.descText}>Your dashboard for today</Text>
 
         {/* Quick Stats Row */}
@@ -156,6 +183,16 @@ const styles = StyleSheet.create({
   headerIcon: { fontSize: 44, marginBottom: 4 },
   headerTitle: { color: "#fff", fontSize: 24, fontWeight: "800" },
   headerSubtitle: { color: "#c5d8ff", fontSize: 12, marginTop: 4 },
+  logoutBtn: {
+    position: "absolute",
+    top: 12,
+    right: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  logoutText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   content: { padding: 20, paddingBottom: 40 },
   welcomeText: {
     fontSize: 20,

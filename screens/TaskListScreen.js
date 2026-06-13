@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useState } from "react";
 import {
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import TaskCard from "../components_new/TaskCard";
-import { MOCK_TASKS } from "../utils/tasks";
+import { useAuth } from "../context/AuthContext";
+import { loadTasks } from "../utils/tasks";
 
 const FILTERS = [
   { key: "all", label: "All", count: 0 },
@@ -18,33 +22,54 @@ const FILTERS = [
 ];
 
 export default function TaskListScreen({ navigation }) {
+  const { user } = useAuth();
   const [filter, setFilter] = useState("all");
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Load only this engineer's tasks from Firestore
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchTasks();
+    }, []),
+  );
+
+  const fetchTasks = async () => {
+    const engineerName = user?.displayName || "";
+    const data = await loadTasks(engineerName);
+    setTasks(data);
+    setLoading(false);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchTasks();
+    setRefreshing(false);
+  };
 
   // Filter logic
   const getFilteredTasks = () => {
     switch (filter) {
       case "active":
-        return MOCK_TASKS.filter((t) =>
+        return tasks.filter((t) =>
           ["ASSIGNED", "ACCEPTED", "IN_PROGRESS", "BLOCKED"].includes(t.state),
         );
       case "completed":
-        return MOCK_TASKS.filter((t) =>
-          ["COMPLETED", "VERIFIED"].includes(t.state),
-        );
+        return tasks.filter((t) => ["COMPLETED", "VERIFIED"].includes(t.state));
       default:
-        return MOCK_TASKS;
+        return tasks;
     }
   };
 
   // Counts for filter tabs
   const counts = {
-    all: MOCK_TASKS.length,
-    active: MOCK_TASKS.filter((t) =>
+    all: tasks.length,
+    active: tasks.filter((t) =>
       ["ASSIGNED", "ACCEPTED", "IN_PROGRESS", "BLOCKED"].includes(t.state),
     ).length,
-    completed: MOCK_TASKS.filter((t) =>
-      ["COMPLETED", "VERIFIED"].includes(t.state),
-    ).length,
+    completed: tasks.filter((t) => ["COMPLETED", "VERIFIED"].includes(t.state))
+      .length,
   };
 
   const filteredTasks = getFilteredTasks();
@@ -71,12 +96,21 @@ export default function TaskListScreen({ navigation }) {
       <View style={styles.engineerBar}>
         <Text style={styles.engineerIcon}>👷</Text>
         <View style={{ flex: 1 }}>
-          <Text style={styles.engineerName}>Rishi Gupta</Text>
-          <Text style={styles.engineerRole}>Field Engineer • EMP-12345</Text>
+          <Text style={styles.engineerName}>
+            {user?.displayName || user?.email?.split("@")[0] || "Engineer"}
+          </Text>
+          <Text style={styles.engineerRole}>
+            Field Engineer • {user?.email || ""}
+          </Text>
         </View>
         <View style={styles.dateBox}>
           <Text style={styles.dateLabel}>Today</Text>
-          <Text style={styles.dateValue}>22 May</Text>
+          <Text style={styles.dateValue}>
+            {new Date().toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+            })}
+          </Text>
         </View>
       </View>
 
@@ -123,8 +157,22 @@ export default function TaskListScreen({ navigation }) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#1a73e8"]}
+          />
+        }
       >
-        {filteredTasks.length === 0 ? (
+        {loading ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color="#1a73e8" />
+            <Text style={[styles.emptySub, { marginTop: 12 }]}>
+              Loading tasks from cloud...
+            </Text>
+          </View>
+        ) : filteredTasks.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📭</Text>
             <Text style={styles.emptyTitle}>No tasks found</Text>

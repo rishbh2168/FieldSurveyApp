@@ -27,6 +27,7 @@ export default function SuccessScreen({ navigation, route }) {
     offSiteReason = "",
     task = null,
     createdIssueId = null,
+    cloudSync = null,
   } = route.params || {};
 
   // Sprint 4: Signature state
@@ -186,6 +187,45 @@ export default function SuccessScreen({ navigation, route }) {
             </>
           )}
         </TouchableOpacity>
+
+        {/* Sprint 5B: Cloud Sync Status */}
+        {cloudSync && (
+          <View
+            style={[
+              styles.cloudSyncCard,
+              {
+                borderLeftColor: cloudSync.success
+                  ? "#16a34a"
+                  : cloudSync.offline
+                    ? "#f59e0b"
+                    : "#ef4444",
+              },
+            ]}
+          >
+            <Text style={styles.cloudSyncIcon}>
+              {cloudSync.success ? "☁️" : cloudSync.offline ? "📱" : "⚠️"}
+            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cloudSyncTitle}>
+                {cloudSync.success
+                  ? "Synced to Cloud"
+                  : cloudSync.offline
+                    ? "Saved Offline"
+                    : "Sync Failed"}
+              </Text>
+              <Text style={styles.cloudSyncSub}>
+                {cloudSync.success
+                  ? `Survey ID: ${cloudSync.surveyId?.slice(0, 12)}...`
+                  : cloudSync.offline
+                    ? "Will auto-sync when back online"
+                    : "Data saved locally — retry later"}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 18 }}>
+              {cloudSync.success ? "✅" : cloudSync.offline ? "🔄" : "❌"}
+            </Text>
+          </View>
+        )}
 
         {/* Created Issue Card */}
         {createdIssueId && (
@@ -590,4 +630,23 @@ const styles = StyleSheet.create({
     borderColor: "#1a73e8",
   },
   newSurveyBtnText: { color: "#1a73e8", fontSize: 15, fontWeight: "800" },
+
+  cloudSyncCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    gap: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius: 4,
+  },
+  cloudSyncIcon: { fontSize: 28 },
+  cloudSyncTitle: { fontSize: 14, fontWeight: "800", color: "#1a1a2e" },
+  cloudSyncSub: { fontSize: 11, color: "#666", marginTop: 2 },
 });

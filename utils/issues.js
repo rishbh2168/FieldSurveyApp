@@ -1,10 +1,24 @@
 // ─────────────────────────────────────────────
 //  Issues Lifecycle Management
-//  Issues created from surveys, tracked till closure
+//  Sprint 5B-2: Firestore sync with AsyncStorage fallback
 // ─────────────────────────────────────────────
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { auth } from "./firebase";
+import { db } from "./firestore";
 
 const ISSUES_STORAGE_KEY = "@fieldsurvey_issues";
+const ISSUES_COLLECTION = "issues";
 
 // Issue states
 export const ISSUE_STATES = {
@@ -46,7 +60,7 @@ function generateIssueId() {
   return `ISS-${year}-${random}`;
 }
 
-// Create new issue
+// Create new issue object (unchanged)
 export function createIssue({
   description,
   severity = "MEDIUM",
@@ -84,43 +98,109 @@ export function createIssue({
   };
 }
 
-// Save issues to local storage
-export async function saveIssues(issues) {
+// ─── SAVE TO LOCAL (fallback) ───
+async function saveIssuesLocal(issues) {
   try {
     await AsyncStorage.setItem(ISSUES_STORAGE_KEY, JSON.stringify(issues));
-    return true;
   } catch (error) {
-    console.error("Save issues error:", error);
-    return false;
+    console.error("Local save error:", error);
   }
 }
 
-// Load issues from storage
-export async function loadIssues() {
+async function loadIssuesLocal() {
   try {
     const data = await AsyncStorage.getItem(ISSUES_STORAGE_KEY);
     if (data) return JSON.parse(data);
-    return getMockIssues(); // Default to mock data first time
+    return null;
   } catch (error) {
-    console.error("Load issues error:", error);
-    return [];
+    console.error("Local load error:", error);
+    return null;
   }
 }
 
-// Add new issue
+// ─── LOAD ISSUES (Firestore first, AsyncStorage fallback) ───
+// Pass engineerName to filter issues reported by a specific engineer
+// Pass nothing to get all issues (for manager dashboard)
+export async function loadIssues(engineerName = null) {
+  try {
+    const q = query(
+      collection(db, ISSUES_COLLECTION),
+      orderBy("reportedAt", "desc"),
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty && !engineerName) {
+      // First time — seed with mock data to Firestore
+      const mocks = getMockIssues();
+      for (const issue of mocks) {
+        await addDoc(collection(db, ISSUES_COLLECTION), {
+          ...issue,
+          syncedAt: serverTimestamp(),
+        });
+      }
+      // Also save locally
+      await saveIssuesLocal(mocks);
+      return engineerName
+        ? mocks.filter((i) => i.reportedBy === engineerName)
+        : mocks;
+    }
+
+    let issues = snapshot.docs.map((d) => ({
+      ...d.data(),
+      firestoreId: d.id, // Keep Firestore doc ID for updates
+    }));
+
+    // Filter by engineer if specified
+    if (engineerName) {
+      issues = issues.filter((i) => i.reportedBy === engineerName);
+    }
+
+    // Cache locally for offline access
+    await saveIssuesLocal(issues);
+    return issues;
+  } catch (error) {
+    console.error("Firestore load failed, using local:", error);
+    // Fallback to local
+    let local = await loadIssuesLocal();
+    let issues = local || getMockIssues();
+    if (engineerName) {
+      issues = issues.filter((i) => i.reportedBy === engineerName);
+    }
+    return issues;
+  }
+}
+
+// ─── ADD ISSUE (Firestore + local) ───
 export async function addIssue(issue) {
-  const issues = await loadIssues();
-  const updated = [issue, ...issues];
-  await saveIssues(updated);
+  try {
+    // Save to Firestore
+    const docRef = await addDoc(collection(db, ISSUES_COLLECTION), {
+      ...issue,
+      userId: auth.currentUser?.uid || "anonymous",
+      userEmail: auth.currentUser?.email || "",
+      syncedAt: serverTimestamp(),
+    });
+    issue.firestoreId = docRef.id;
+  } catch (error) {
+    console.error("Firestore add failed:", error);
+  }
+
+  // Always save locally too
+  const local = (await loadIssuesLocal()) || [];
+  const updated = [issue, ...local];
+  await saveIssuesLocal(updated);
   return updated;
 }
 
-// Update issue state
+// ─── UPDATE ISSUE STATE (Firestore + local) ───
 export async function updateIssueState(issueId, newState, note = "") {
   const issues = await loadIssues();
+  const now = new Date().toISOString();
+  const userName =
+    auth.currentUser?.displayName || auth.currentUser?.email || "Engineer";
+
   const updated = issues.map((iss) => {
     if (iss.id !== issueId) return iss;
-    const now = new Date().toISOString();
     return {
       ...iss,
       state: newState,
@@ -129,7 +209,7 @@ export async function updateIssueState(issueId, newState, note = "") {
         {
           state: newState,
           timestamp: now,
-          by: "Rishi Gupta",
+          by: userName,
           note: note || `State changed to ${newState}`,
         },
       ],
@@ -137,8 +217,47 @@ export async function updateIssueState(issueId, newState, note = "") {
       closedAt: newState === "CLOSED" ? now : iss.closedAt,
     };
   });
-  await saveIssues(updated);
+
+  // Update in Firestore
+  const target = issues.find((i) => i.id === issueId);
+  if (target?.firestoreId) {
+    try {
+      const updatedIssue = updated.find((i) => i.id === issueId);
+      await updateDoc(doc(db, ISSUES_COLLECTION, target.firestoreId), {
+        state: newState,
+        history: updatedIssue.history,
+        resolvedAt: updatedIssue.resolvedAt,
+        closedAt: updatedIssue.closedAt,
+      });
+    } catch (error) {
+      console.error("Firestore update failed:", error);
+    }
+  }
+
+  // Always update locally
+  await saveIssuesLocal(updated);
   return updated;
+}
+
+// ─── REAL-TIME LISTENER (for future use) ───
+export function subscribeToIssues(callback) {
+  const q = query(
+    collection(db, ISSUES_COLLECTION),
+    orderBy("reportedAt", "desc"),
+  );
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const issues = snapshot.docs.map((d) => ({
+        ...d.data(),
+        firestoreId: d.id,
+      }));
+      callback(issues);
+    },
+    (error) => {
+      console.error("Issues listener error:", error);
+    },
+  );
 }
 
 // Get next allowed state transitions
@@ -147,13 +266,13 @@ export function getNextIssueStates(currentState) {
     OPEN: ["ASSIGNED"],
     ASSIGNED: ["IN_PROGRESS"],
     IN_PROGRESS: ["RESOLVED"],
-    RESOLVED: ["CLOSED", "IN_PROGRESS"], // Can reopen
+    RESOLVED: ["CLOSED", "IN_PROGRESS"],
     CLOSED: [],
   };
   return transitions[currentState] || [];
 }
 
-// Format timestamp nicely
+// Format timestamp
 export function formatIssueTime(timestamp) {
   return new Date(timestamp).toLocaleString();
 }
@@ -290,3 +409,6 @@ function getMockIssues() {
     },
   ];
 }
+
+// Legacy export for backward compatibility
+export const saveIssues = saveIssuesLocal;
